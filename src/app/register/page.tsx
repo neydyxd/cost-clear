@@ -1,6 +1,78 @@
-import { Box, Button, FormControl, FormLabel, Input, Stack, Heading, Text } from '@chakra-ui/react'
+'use client'
+
+import {
+  Box,
+  Button,
+  FormControl,
+  FormLabel,
+  Input,
+  Stack,
+  Heading,
+  Text,
+  useToast,
+} from '@chakra-ui/react'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function RegisterPage() {
+  const router = useRouter()
+  const toast = useToast()
+  const [isLoading, setIsLoading] = useState(false)
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    password: '',
+    role: 'user',
+  })
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsLoading(true)
+
+    try {
+      const response = await fetch('/api/users/custom-register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+
+      if (!response.ok) {
+        throw new Error('Ошибка при регистрации')
+      }
+
+      toast({
+        title: 'Успешная регистрация',
+        description: 'Вы успешно зарегистрировались!',
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      })
+
+      // Перенаправление на страницу входа
+      router.push('/login')
+    } catch (error) {
+      toast({
+        title: 'Ошибка',
+        description: 'Произошла ошибка при регистрации. Попробуйте еще раз.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
     <Box
       display="flex"
@@ -29,28 +101,48 @@ export default function RegisterPage() {
         <Heading mb={6} textAlign="center" color="white">
           Регистрация
         </Heading>
-        <Stack spacing={4}>
-          <FormControl isRequired>
-            <FormLabel color="white">Имя пользователя</FormLabel>
-            <Input placeholder="Введите имя пользователя" bg="gray.600" color="white" />
-          </FormControl>
-          <FormControl isRequired>
-            <FormLabel color="white">Электронная почта</FormLabel>
-            <Input
-              type="email"
-              placeholder="Введите электронную почту"
-              bg="gray.600"
-              color="white"
-            />
-          </FormControl>
-          <FormControl isRequired>
-            <FormLabel color="white">Пароль</FormLabel>
-            <Input type="password" placeholder="Введите пароль" bg="gray.600" color="white" />
-          </FormControl>
-          <Button colorScheme="teal" type="submit" width="full">
-            Зарегистрироваться
-          </Button>
-        </Stack>
+        <form onSubmit={handleSubmit}>
+          <Stack spacing={4}>
+            <FormControl isRequired>
+              <FormLabel color="white">Имя пользователя</FormLabel>
+              <Input
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="Введите имя пользователя"
+                bg="gray.600"
+                color="white"
+              />
+            </FormControl>
+            <FormControl isRequired>
+              <FormLabel color="white">Электронная почта</FormLabel>
+              <Input
+                name="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Введите электронную почту"
+                bg="gray.600"
+                color="white"
+              />
+            </FormControl>
+            <FormControl isRequired>
+              <FormLabel color="white">Пароль</FormLabel>
+              <Input
+                name="password"
+                type="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Введите пароль"
+                bg="gray.600"
+                color="white"
+              />
+            </FormControl>
+            <Button colorScheme="teal" type="submit" width="full" isLoading={isLoading}>
+              Зарегистрироваться
+            </Button>
+          </Stack>
+        </form>
       </Box>
     </Box>
   )

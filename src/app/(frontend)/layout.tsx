@@ -1,6 +1,9 @@
 import React from 'react'
 import './styles.css'
-import { ChakraProvider } from '@chakra-ui/react'
+import { ChakraProvider, Box } from '@chakra-ui/react'
+import { AuthProvider } from '@/app/context/AuthContext'
+import Header from '@/app/components/Header'
+import Background from '@/app/components/Background'
 
 export const metadata = {
   description: 'A blank template using Payload in a Next.js app.',
@@ -13,9 +16,16 @@ export default async function RootLayout(props: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <ChakraProvider>
-          <main>{children}</main>
-        </ChakraProvider>
+        <AuthProvider>
+          <ChakraProvider>
+            <Background>
+              <Header />
+              <Box as="main" pt="70px">
+                {children}
+              </Box>
+            </Background>
+          </ChakraProvider>
+        </AuthProvider>
       </body>
     </html>
   )
