@@ -1,537 +1,427 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { Box, Text, Spinner, SimpleGrid, Container, Heading, VStack } from '@chakra-ui/react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import {
+  Box,
+  Text,
+  Spinner,
+  SimpleGrid,
+  Container,
+  Heading,
+  VStack,
+  Button,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  FormControl,
+  FormLabel,
+  Input,
+  Textarea,
+  useToast,
+  Image,
+  HStack,
+  IconButton,
+  useDisclosure,
+} from '@chakra-ui/react'
+import { AddIcon, DeleteIcon, AttachmentIcon } from '@chakra-ui/icons'
 import './styles.css'
 import { useAuth } from '../context/AuthContext'
 import { useRouter } from 'next/navigation'
 import TypingText from '@/app/components/TypingText'
 import EventCard from '@/app/components/EventCard'
 
-// Моковые данные для мероприятий
-const mockEvents = [
-  {
-    id: '1',
-    title: 'Концерт классической музыки',
-    description: 'Великолепный вечер классической музыки в исполнении лучших музыкантов города',
-    date: '25 апреля 2024',
-    location: 'Концертный зал',
-    imageUrl:
-      'https://images.unsplash.com/photo-1511379938547-c1f69419868d?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    category: 'Музыка',
-    totalCost: 15000,
-    participants: [
-      {
-        id: '1',
-        name: 'Александр Соколов',
-        role: 'организатор',
-        paid: 5000,
-        owes: 0,
-        items: ['Аренда зала'],
-      },
-      {
-        id: '2',
-        name: 'Елена Морозова',
-        role: 'участник',
-        paid: 3000,
-        owes: 1000,
-        items: ['Билеты'],
-      },
-    ],
-    expenses: [
-      {
-        id: '1',
-        description: 'Аренда зала',
-        amount: 5000,
-        paidBy: 'Александр Соколов',
-        date: '2024-04-25',
-      },
-    ],
-  },
-  {
-    id: '2',
-    title: 'Мастер-класс по живописи',
-    description: 'Научитесь создавать прекрасные картины под руководством опытного художника',
-    date: '30 апреля 2024',
-    location: 'Художественная студия',
-    imageUrl:
-      '',
-    category: 'Искусство',
-    totalCost: 8000,
-    participants: [
-      {
-        id: '1',
-        name: 'Мария Иванова',
-        role: 'организатор',
-        paid: 3000,
-        owes: 0,
-        items: ['Материалы'],
-      },
-      {
-        id: '2',
-        name: 'Дмитрий Петров',
-        role: 'участник',
-        paid: 2000,
-        owes: 500,
-        items: ['Холсты'],
-      },
-    ],
-    expenses: [
-      {
-        id: '1',
-        description: 'Материалы для рисования',
-        amount: 3000,
-        paidBy: 'Мария Иванова',
-        date: '2024-04-30',
-      },
-    ],
-  },
-  {
-    id: '3',
-    title: 'Кулинарный мастер-класс',
-    description: 'Приготовьте изысканные блюда вместе с профессиональным шеф-поваром',
-    date: '5 мая 2024',
-    location: 'Кулинарная школа',
-    imageUrl:
-      'https://images.unsplash.com/photo-1504674900247-0877df9cc836?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    category: 'Кулинария',
-    totalCost: 10000,
-    participants: [
-      {
-        id: '1',
-        name: 'Анна Кузнецова',
-        role: 'организатор',
-        paid: 4000,
-        owes: 0,
-        items: ['Продукты'],
-      },
-      {
-        id: '2',
-        name: 'Иван Смирнов',
-        role: 'участник',
-        paid: 2500,
-        owes: 750,
-        items: ['Посуда'],
-      },
-    ],
-    expenses: [
-      {
-        id: '1',
-        description: 'Продукты для мастер-класса',
-        amount: 4000,
-        paidBy: 'Анна Кузнецова',
-        date: '2024-05-05',
-      },
-    ],
-  },
-  {
-    id: '4',
-    title: 'Йога и медитация',
-    description: 'Начните свой день с энергичной практики йоги и медитации',
-    date: '10 мая 2024',
-    location: 'Йога-студия',
-    imageUrl:
-      'https://images.unsplash.com/photo-1545205597-3d9d02c29597?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    category: 'Спорт',
-    totalCost: 4000,
-    participants: [
-      {
-        id: '1',
-        name: 'Ольга Васильева',
-        role: 'организатор',
-        paid: 2000,
-        owes: 0,
-        items: ['Аренда зала'],
-      },
-      {
-        id: '2',
-        name: 'Сергей Николаев',
-        role: 'участник',
-        paid: 1000,
-        owes: 500,
-        items: ['Коврики'],
-      },
-    ],
-    expenses: [
-      {
-        id: '1',
-        description: 'Аренда зала',
-        amount: 2000,
-        paidBy: 'Ольга Васильева',
-        date: '2024-05-10',
-      },
-    ],
-  },
-  {
-    id: '5',
-    title: 'Театральная постановка',
-    description: 'Современная интерпретация классической пьесы в исполнении молодых актеров',
-    date: '15 мая 2024',
-    location: 'Театр "Новая сцена"',
-    imageUrl:
-      'https://images.unsplash.com/photo-1507924538820-ede94a04019d?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    category: 'Театр',
-    totalCost: 7200,
-    participants: [
-      {
-        id: '1',
-        name: 'Алексей Попов',
-        role: 'организатор',
-        paid: 3000,
-        owes: 0,
-        items: ['Костюмы'],
-      },
-      {
-        id: '2',
-        name: 'Екатерина Соколова',
-        role: 'участник',
-        paid: 1800,
-        owes: 600,
-        items: ['Декорации'],
-      },
-    ],
-    expenses: [
-      {
-        id: '1',
-        description: 'Костюмы для спектакля',
-        amount: 3000,
-        paidBy: 'Алексей Попов',
-        date: '2024-05-15',
-      },
-    ],
-  },
-  {
-    id: '6',
-    title: 'Фотография для начинающих',
-    description: 'Освойте основы фотографии и научитесь создавать профессиональные снимки',
-    date: '20 мая 2024',
-    location: 'Фотостудия "Объектив"',
-    imageUrl:
-      'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    category: 'Фотография',
-    totalCost: 12000,
-    participants: [
-      {
-        id: '1',
-        name: 'Дмитрий Волков',
-        role: 'организатор',
-        paid: 5000,
-        owes: 0,
-        items: ['Оборудование'],
-      },
-      {
-        id: '2',
-        name: 'Анна Морозова',
-        role: 'участник',
-        paid: 3000,
-        owes: 1000,
-        items: ['Модели'],
-      },
-    ],
-    expenses: [
-      {
-        id: '1',
-        description: 'Фотооборудование',
-        amount: 5000,
-        paidBy: 'Дмитрий Волков',
-        date: '2024-05-20',
-      },
-    ],
-  },
-  {
-    id: '8',
-    title: 'Винная дегустация',
-    description: 'Познакомьтесь с лучшими винами мира под руководством сомелье',
-    date: '30 мая 2024',
-    location: 'Винный бар',
-    imageUrl:
-      'https://images.unsplash.com/photo-1510812431401-41d2bd2722f3?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    category: 'Дегустация',
-    totalCost: 14000,
-    participants: [
-      {
-        id: '1',
-        name: 'Игорь Соколов',
-        role: 'организатор',
-        paid: 6000,
-        owes: 0,
-        items: ['Вино'],
-      },
-      {
-        id: '2',
-        name: 'Мария Петрова',
-        role: 'участник',
-        paid: 3500,
-        owes: 1250,
-        items: ['Закуски'],
-      },
-    ],
-    expenses: [
-      {
-        id: '1',
-        description: 'Коллекция вин',
-        amount: 6000,
-        paidBy: 'Игорь Соколов',
-        date: '2024-05-30',
-      },
-    ],
-  },
-  {
-    id: '10',
-    title: 'Пикник в парке',
-    description: 'Весенний пикник с играми, музыкой и вкусной едой',
-    date: '10 июня 2024',
-    location: 'Центральный парк',
-    imageUrl:
-      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    category: 'Отдых',
-    totalCost: 5000,
-    participants: [
-      {
-        id: '1',
-        name: 'Алексей Петров',
-        role: 'организатор',
-        paid: 2000,
-        owes: 0,
-        items: ['Мангал', 'Уголь'],
-      },
-      {
-        id: '2',
-        name: 'Мария Иванова',
-        role: 'участник',
-        paid: 1000,
-        owes: 500,
-        items: ['Салаты'],
-      },
-      {
-        id: '3',
-        name: 'Дмитрий Сидоров',
-        role: 'участник',
-        paid: 0,
-        owes: 1000,
-        items: ['Мясо'],
-      },
-    ],
-    expenses: [
-      {
-        id: '1',
-        description: 'Мангал и уголь',
-        amount: 2000,
-        paidBy: 'Алексей Петров',
-        date: '2024-06-10',
-      },
-      {
-        id: '2',
-        description: 'Мясо',
-        amount: 3000,
-        paidBy: 'Дмитрий Сидоров',
-        date: '2024-06-10',
-      },
-    ],
-  },
-  {
-    id: '11',
-    title: 'Курс по инвестициям',
-    description: 'Научитесь грамотно инвестировать свои деньги с опытным трейдером',
-    date: '15 июня 2024',
-    location: 'Бизнес-центр',
-    imageUrl:
-      'https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    category: 'Финансы',
-    totalCost: 16000,
-    participants: [
-      {
-        id: '1',
-        name: 'Андрей Смирнов',
-        role: 'организатор',
-        paid: 6000,
-        owes: 0,
-        items: ['Материалы'],
-      },
-      {
-        id: '2',
-        name: 'Елена Кузнецова',
-        role: 'участник',
-        paid: 4000,
-        owes: 1000,
-        items: ['Помещение'],
-      },
-    ],
-    expenses: [
-      {
-        id: '1',
-        description: 'Учебные материалы',
-        amount: 6000,
-        paidBy: 'Андрей Смирнов',
-        date: '2024-06-15',
-      },
-    ],
-  },
-  {
-    id: '12',
-    title: 'Мастер-класс по гончарному делу',
-    description: 'Создайте свою первую керамическую посуду своими руками',
-    date: '20 июня 2024',
-    location: 'Гончарная мастерская',
-    imageUrl:
-      'https://images.unsplash.com/photo-1578500494198-246f612d3b3d?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    category: 'Ремесло',
-    totalCost: 11200,
-    participants: [
-      {
-        id: '1',
-        name: 'Татьяна Морозова',
-        role: 'организатор',
-        paid: 5000,
-        owes: 0,
-        items: ['Глина'],
-      },
-      {
-        id: '2',
-        name: 'Александр Иванов',
-        role: 'участник',
-        paid: 2800,
-        owes: 1100,
-        items: ['Инструменты'],
-      },
-    ],
-    expenses: [
-      {
-        id: '1',
-        description: 'Материалы для лепки',
-        amount: 5000,
-        paidBy: 'Татьяна Морозова',
-        date: '2024-06-20',
-      },
-    ],
-  },
-  {
-    id: '13',
-    title: 'Корпоратив',
-    description: 'Ежегодный корпоративный праздник',
-    date: '15 июня 2024',
-    location: 'Ресторан "Золотой"',
-    imageUrl:
-      'https://images.unsplash.com/photo-1511795409834-432f8c8d0a1f?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    category: 'Корпоратив',
-    totalCost: 15000,
-    participants: [
-      {
-        id: '1',
-        name: 'Анна Смирнова',
-        role: 'организатор',
-        paid: 5000,
-        owes: 0,
-        items: ['Аренда зала'],
-      },
-      {
-        id: '2',
-        name: 'Иван Кузнецов',
-        role: 'участник',
-        paid: 3000,
-        owes: 1000,
-        items: ['Напитки'],
-      },
-      {
-        id: '3',
-        name: 'Елена Попова',
-        role: 'участник',
-        paid: 2000,
-        owes: 500,
-        items: ['Десерты'],
-      },
-    ],
-    expenses: [
-      {
-        id: '1',
-        description: 'Аренда зала',
-        amount: 5000,
-        paidBy: 'Анна Смирнова',
-        date: '2024-06-15',
-      },
-      {
-        id: '2',
-        description: 'Напитки',
-        amount: 4000,
-        paidBy: 'Иван Кузнецов',
-        date: '2024-06-15',
-      },
-      {
-        id: '3',
-        description: 'Десерты',
-        amount: 2500,
-        paidBy: 'Елена Попова',
-        date: '2024-06-15',
-      },
-    ],
-  },
-  {
-    id: '14',
-    title: 'Поездка на море',
-    description: 'Летний отдых на побережье',
-    date: '1 июля 2024',
-    location: 'Черноморское побережье',
-    imageUrl:
-      'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-1.2.1&auto=format&fit=crop&w=800&q=80',
-    category: 'Отдых',
-    totalCost: 25000,
-    participants: [
-      {
-        id: '1',
-        name: 'Петр Николаев',
-        role: 'организатор',
-        paid: 10000,
-        owes: 0,
-        items: ['Аренда дома', 'Транспорт'],
-      },
-      {
-        id: '2',
-        name: 'Ольга Морозова',
-        role: 'участник',
-        paid: 5000,
-        owes: 2500,
-        items: ['Продукты'],
-      },
-      {
-        id: '3',
-        name: 'Сергей Волков',
-        role: 'участник',
-        paid: 5000,
-        owes: 2500,
-        items: ['Развлечения'],
-      },
-    ],
-    expenses: [
-      {
-        id: '1',
-        description: 'Аренда дома',
-        amount: 10000,
-        paidBy: 'Петр Николаев',
-        date: '2024-07-01',
-      },
-      {
-        id: '2',
-        description: 'Продукты',
-        amount: 7500,
-        paidBy: 'Ольга Морозова',
-        date: '2024-07-01',
-      },
-      {
-        id: '3',
-        description: 'Развлечения',
-        amount: 7500,
-        paidBy: 'Сергей Волков',
-        date: '2024-07-01',
-      },
-    ],
-  },
-]
+interface User {
+  id: number
+  name: string
+  email: string
+}
+
+interface Event {
+  id: string
+  name: string
+  description: string
+  date: string
+  location: string
+  image: {
+    url: string
+  }
+  users: User[]
+  totalCost: number
+  participants: {
+    id: string
+    name: string
+    role: string
+    paid: number
+    owes: number
+    items: string[]
+  }[]
+  expenses: {
+    id: string
+    description: string
+    amount: number
+    paidBy: string
+    date: string
+  }[]
+}
 
 export default function HomePage() {
   const [showTitle, setShowTitle] = useState(false)
   const { isAuthenticated, isLoading: authLoading, user } = useAuth()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
+  const { isOpen, onOpen, onClose } = useDisclosure()
+  const toast = useToast()
+  const [users, setUsers] = useState<User[]>([])
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false)
+  const [events, setEvents] = useState<Event[]>([])
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false)
+
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    date: '',
+    location: '',
+    image: null as File | null,
+    selectedUsers: [] as string[],
+  })
+
+  // Загрузка пользователей при открытии модального окна
+  useEffect(() => {
+    if (isOpen) {
+      fetchUsers()
+    }
+  }, [isOpen])
+
+  const fetchUsers = async () => {
+    setIsLoadingUsers(true)
+    try {
+      const response = await fetch('/api/users')
+      if (response.ok) {
+        const data = await response.json()
+        // Проверяем, что data является массивом
+        if (Array.isArray(data)) {
+          setUsers(data)
+        } else if (data.docs) {
+          // Если данные приходят в формате { docs: [...] }
+          setUsers(data.docs)
+        } else {
+          throw new Error('Неверный формат данных')
+        }
+      } else {
+        throw new Error('Ошибка при загрузке пользователей')
+      }
+    } catch (error) {
+      toast({
+        title: 'Ошибка',
+        description: 'Не удалось загрузить список пользователей',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+    } finally {
+      setIsLoadingUsers(false)
+    }
+  }
+
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+      const { name, value } = e.target
+      setFormData((prev) => ({ ...prev, [name]: value }))
+    },
+    [],
+  )
+
+  const handleImageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      setFormData((prev) => ({ ...prev, image: file }))
+    }
+  }, [])
+
+  const handleUserToggle = useCallback((userId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      selectedUsers: prev.selectedUsers.includes(userId)
+        ? prev.selectedUsers.filter((id) => id !== userId)
+        : [...prev.selectedUsers, userId],
+    }))
+  }, [])
+
+  // Загрузка событий
+  const fetchEvents = useCallback(async () => {
+    setIsLoadingEvents(true)
+    try {
+      const response = await fetch('/api/events')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.docs) {
+          setEvents(data.docs)
+        } else {
+          setEvents(data)
+        }
+      } else {
+        throw new Error('Ошибка при загрузке событий')
+      }
+    } catch (error) {
+      toast({
+        title: 'Ошибка',
+        description: 'Не удалось загрузить список событий',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      })
+    } finally {
+      setIsLoadingEvents(false)
+    }
+  }, [toast])
+
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault()
+      try {
+        const formDataToSend = new FormData()
+        formDataToSend.append('name', formData.name)
+        formDataToSend.append('description', formData.description)
+        formDataToSend.append('date', formData.date)
+        formDataToSend.append('location', formData.location)
+        if (formData.image) {
+          formDataToSend.append('image', formData.image)
+        }
+        formData.selectedUsers.forEach((userId) => {
+          formDataToSend.append('users', userId)
+        })
+
+        const response = await fetch('/api/events/create-event', {
+          method: 'POST',
+          body: formDataToSend,
+        })
+
+        if (response.ok) {
+          toast({
+            title: 'Событие создано!',
+            status: 'success',
+            duration: 3000,
+            isClosable: true,
+          })
+          onClose()
+          setFormData({
+            name: '',
+            description: '',
+            date: '',
+            location: '',
+            image: null,
+            selectedUsers: [],
+          })
+          // Обновляем список событий
+          fetchEvents()
+        } else {
+          throw new Error('Ошибка при создании события')
+        }
+      } catch (error) {
+        toast({
+          title: 'Ошибка',
+          description: 'Не удалось создать событие',
+          status: 'error',
+          duration: 3000,
+          isClosable: true,
+        })
+      }
+    },
+    [formData, toast, onClose, fetchEvents],
+  )
+
+  // Мемоизируем отфильтрованный список пользователей
+  const filteredUsers = useMemo(() => {
+    return users.filter((userData) => userData.id !== (user?.id ?? -1))
+  }, [users, user?.id])
+
+  // Мемоизируем компоненты формы
+  const formControls = useMemo(
+    () => (
+      <VStack spacing={4}>
+        <FormControl isRequired>
+          <FormLabel color="white">Название</FormLabel>
+          <Input
+            name="name"
+            value={formData.name}
+            onChange={handleInputChange}
+            bg="gray.700"
+            borderColor="gray.600"
+            color="white"
+            _hover={{ borderColor: 'gray.500' }}
+            _focus={{ borderColor: 'teal.500' }}
+          />
+        </FormControl>
+
+        <FormControl isRequired>
+          <FormLabel color="white">Описание</FormLabel>
+          <Textarea
+            name="description"
+            value={formData.description}
+            onChange={handleInputChange}
+            bg="gray.700"
+            borderColor="gray.600"
+            color="white"
+            _hover={{ borderColor: 'gray.500' }}
+            _focus={{ borderColor: 'teal.500' }}
+            rows={4}
+          />
+        </FormControl>
+
+        <FormControl isRequired>
+          <FormLabel color="white">Дата</FormLabel>
+          <Input
+            name="date"
+            type="date"
+            value={formData.date}
+            onChange={handleInputChange}
+            bg="gray.700"
+            borderColor="gray.600"
+            color="white"
+            _hover={{ borderColor: 'gray.500' }}
+            _focus={{ borderColor: 'teal.500' }}
+          />
+        </FormControl>
+
+        <FormControl isRequired>
+          <FormLabel color="white">Локация</FormLabel>
+          <Input
+            name="location"
+            value={formData.location}
+            onChange={handleInputChange}
+            bg="gray.700"
+            borderColor="gray.600"
+            color="white"
+            _hover={{ borderColor: 'gray.500' }}
+            _focus={{ borderColor: 'teal.500' }}
+          />
+        </FormControl>
+
+        <FormControl>
+          <FormLabel color="white">Изображение</FormLabel>
+          <Box
+            position="relative"
+            height="120px"
+            border="2px dashed"
+            borderColor="gray.600"
+            borderRadius="lg"
+            overflow="hidden"
+            cursor="pointer"
+            _hover={{ borderColor: 'teal.500' }}
+            transition="all 0.2s"
+            bg={formData.image ? 'transparent' : 'gray.700'}
+          >
+            {formData.image ? (
+              <Image
+                src={URL.createObjectURL(formData.image)}
+                alt="Preview"
+                objectFit="cover"
+                width="100%"
+                height="100%"
+              />
+            ) : (
+              <VStack height="100%" justify="center" spacing={1} p={4}>
+                <AttachmentIcon w={6} h={6} color="gray.400" />
+                <Text color="gray.400" fontSize="sm">
+                  Нажмите для загрузки
+                </Text>
+              </VStack>
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                opacity: 0,
+                cursor: 'pointer',
+              }}
+            />
+            {formData.image && (
+              <IconButton
+                aria-label="Удалить изображение"
+                icon={<DeleteIcon />}
+                position="absolute"
+                top={2}
+                right={2}
+                colorScheme="red"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setFormData((prev) => ({ ...prev, image: null }))
+                }}
+                opacity={0.8}
+                _hover={{ opacity: 1 }}
+              />
+            )}
+          </Box>
+        </FormControl>
+
+        <FormControl>
+          <FormLabel color="white">Участники</FormLabel>
+          <VStack align="start" spacing={2}>
+            {isLoadingUsers ? (
+              <Spinner color="teal.500" />
+            ) : (
+              filteredUsers.map((userData) => (
+                <Button
+                  key={userData.id}
+                  variant={
+                    formData.selectedUsers.includes(userData.id.toString()) ? 'solid' : 'outline'
+                  }
+                  colorScheme={
+                    formData.selectedUsers.includes(userData.id.toString()) ? 'teal' : 'gray'
+                  }
+                  onClick={() => handleUserToggle(userData.id.toString())}
+                  width="100%"
+                  justifyContent="flex-start"
+                  bg={
+                    formData.selectedUsers.includes(userData.id.toString())
+                      ? 'teal.500'
+                      : 'gray.700'
+                  }
+                  borderColor="gray.500"
+                  color="white"
+                  _hover={{
+                    bg: formData.selectedUsers.includes(userData.id.toString())
+                      ? 'teal.600'
+                      : 'gray.600',
+                    borderColor: 'gray.400',
+                  }}
+                  _active={{
+                    bg: formData.selectedUsers.includes(userData.id.toString())
+                      ? 'teal.700'
+                      : 'gray.500',
+                  }}
+                >
+                  {userData.name}
+                </Button>
+              ))
+            )}
+          </VStack>
+        </FormControl>
+
+        <Button type="submit" colorScheme="teal" width="100%" mt={4}>
+          Создать событие
+        </Button>
+      </VStack>
+    ),
+    [
+      formData,
+      handleInputChange,
+      handleImageChange,
+      handleUserToggle,
+      isLoadingUsers,
+      filteredUsers,
+    ],
+  )
 
   const handleTypingComplete = () => {
     setTimeout(() => {
@@ -561,6 +451,13 @@ export default function HomePage() {
       sessionStorage.removeItem('hasSeenWelcome')
     }
   }, [isAuthenticated])
+
+  // Загрузка событий при монтировании компонента
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchEvents()
+    }
+  }, [isAuthenticated, fetchEvents])
 
   if (isLoading || authLoading) {
     return (
@@ -601,17 +498,66 @@ export default function HomePage() {
       ) : (
         <Container maxW="container.xl" py={8}>
           <VStack spacing={8} align="stretch">
-            <Heading color="white" textAlign="center" mb={8}>
-              Мероприятия
-            </Heading>
-            <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={6}>
-              {mockEvents.map((event) => (
-                <EventCard key={event.id} {...event} />
-              ))}
-            </SimpleGrid>
+            <HStack justify="space-between">
+              <Heading color="white">Мероприятия</Heading>
+              <Button
+                leftIcon={<AddIcon />}
+                colorScheme="teal"
+                onClick={onOpen}
+                size={{ base: 'sm', md: 'md' }}
+              >
+                Создать событие
+              </Button>
+            </HStack>
+            {isLoadingEvents ? (
+              <Box display="flex" justifyContent="center" py={8}>
+                <Spinner size="xl" color="teal.500" />
+              </Box>
+            ) : events.length === 0 ? (
+              <Box textAlign="center" py={8}>
+                <Text color="gray.400" fontSize="lg">
+                  У вас пока нет мероприятий. Создайте первое!
+                </Text>
+              </Box>
+            ) : (
+              <SimpleGrid columns={{ base: 1, md: 2, lg: 3, xl: 4 }} spacing={6}>
+                {events.map((event) => (
+                  <EventCard
+                    key={event.id}
+                    id={event.id}
+                    title={event.name}
+                    description={event.description}
+                    date={new Date(event.date).toLocaleDateString('ru-RU', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                    location={event.location}
+                    imageUrl={
+                      event.image?.url || 'https://via.placeholder.com/400x300?text=Нет+изображения'
+                    }
+                    category="Мероприятие"
+                    totalCost={event.totalCost || 0}
+                    participants={event.participants || []}
+                    expenses={event.expenses || []}
+                  />
+                ))}
+              </SimpleGrid>
+            )}
           </VStack>
         </Container>
       )}
+
+      <Modal isOpen={isOpen} onClose={onClose} size={{ base: 'full', md: 'xl' }}>
+        <ModalOverlay />
+        <ModalContent bg="gray.800">
+          <ModalHeader color="white">Создание нового события</ModalHeader>
+          <ModalCloseButton color="white" />
+          <ModalBody pb={8}>
+            <form onSubmit={handleSubmit}>{formControls}</form>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
     </Box>
   )
 }

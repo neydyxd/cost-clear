@@ -7,6 +7,7 @@ import Cookie from "js-cookie";
 interface User {
   name: string
   email: string
+  id: number
 }
 
 interface AuthContextType {

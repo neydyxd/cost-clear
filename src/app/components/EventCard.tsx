@@ -12,7 +12,7 @@ import {
   Heading,
 } from '@chakra-ui/react'
 import { useRouter } from 'next/navigation'
-
+import { CalendarIcon } from '@chakra-ui/icons'
 interface EventCardProps {
   id: string
   title: string
@@ -39,7 +39,7 @@ interface EventCardProps {
   }[]
 }
 
-const EventCard: React.FC<EventCardProps> = ({
+export default function EventCard({
   id,
   title,
   description,
@@ -50,7 +50,7 @@ const EventCard: React.FC<EventCardProps> = ({
   totalCost,
   participants,
   expenses,
-}) => {
+}: EventCardProps) {
   const router = useRouter()
 
   const handleClick = () => {
@@ -65,20 +65,24 @@ const EventCard: React.FC<EventCardProps> = ({
       borderRadius="lg"
       overflow="hidden"
       transition="all 0.3s"
-      _hover={{ transform: 'translateY(-5px)', boxShadow: 'xl' }}
+      _hover={{ transform: 'translateY(-4px)', shadow: 'xl' }}
       position="relative"
       height="100%"
       display="flex"
       flexDirection="column"
     >
-      <Box position="relative" height="200px">
+      <Box position="relative" width="100%" paddingTop="56.25%" overflow="hidden">
         <Image
           src={imageUrl}
           alt={title}
-          fill
-          style={{ objectFit: 'cover' }}
+          position="absolute"
+          top="0"
+          left="0"
+          width="100%"
+          height="100%"
+          objectFit="cover"
           transition="transform 0.3s"
-          _groupHover={{ transform: 'scale(1.1)' }}
+          _groupHover={{ transform: 'scale(1.05)' }}
         />
         <Box
           position="absolute"
@@ -86,46 +90,43 @@ const EventCard: React.FC<EventCardProps> = ({
           left="0"
           right="0"
           bottom="0"
-          bg="linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0.8) 100%)"
+          bgGradient="linear(to-b, transparent 0%, rgba(0,0,0,0.7) 100%)"
+          opacity="0"
+          transition="opacity 0.3s"
+          _groupHover={{ opacity: 1 }}
         />
-        <Text
-          position="absolute"
-          top="4"
-          right="4"
-          bg="blue.500"
-          color="white"
-          px="3"
-          py="1"
-          borderRadius="full"
-          fontSize="sm"
-        >
-          {category}
-        </Text>
       </Box>
-      <Box p="6" flex="1" display="flex" flexDirection="column">
-        <Heading size="md" color="white" mb="2">
+
+      <VStack p={4} spacing={2} align="stretch" flex="1" bg="gray.800">
+        <HStack justify="space-between">
+          <Text color="teal.400" fontSize="sm" fontWeight="medium" textTransform="uppercase">
+            {category}
+          </Text>
+          <Text color="white" fontSize="sm" fontWeight="bold">
+            {totalCost.toLocaleString('ru-RU')} ₽
+          </Text>
+        </HStack>
+
+        <Heading size="md" color="white" noOfLines={2}>
           {title}
         </Heading>
-        <Text color="gray.300" fontSize="sm" mb="4" flex="1">
+
+        <Text color="gray.400" fontSize="sm" noOfLines={2}>
           {description}
         </Text>
-        <Box mt="auto">
-          <Text color="gray.400" fontSize="sm" mb="2">
-            {date}
-          </Text>
-          <Text color="gray.400" fontSize="sm" mb="2">
-            {location}
-          </Text>
-          <Text color="white" fontSize="lg" fontWeight="bold">
-            Общая стоимость: {totalCost} ₽
-          </Text>
-          <Text color="gray.400" fontSize="sm">
-            Участников: {participants.length}
-          </Text>
-        </Box>
-      </Box>
+
+        <VStack spacing={2} color="gray.400" fontSize="sm" align="start">
+          <HStack>
+            <CalendarIcon />
+            <Text>{date}</Text>
+          </HStack>
+          <Text>{location}</Text>
+        </VStack>
+
+        <HStack spacing={2} color="gray.400" fontSize="sm">
+          <Text>{participants.length} участников</Text>
+        </HStack>
+      </VStack>
     </Box>
   )
 }
-
-export default EventCard
