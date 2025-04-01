@@ -23,7 +23,14 @@ interface EventCardProps {
   imageUrl: string
   category: string
   totalCost: number
-  participants: User[]
+  participants: {
+    id: string
+    name: string
+    role: string
+    paid: number
+    owes: number
+    items: string[]
+  }[]
   expenses: {
     id: string
     description: string

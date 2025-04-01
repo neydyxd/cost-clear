@@ -32,9 +32,12 @@ export const Users: CollectionConfig = {
   ],
   endpoints: [
     {
-      path: '/custom-register',
+      path: '/register',
       method: 'post',
       handler: async (req) => {
+        if (!req.json) {
+          return Response.json({ message: 'Неверный формат запроса' }, { status: 400 })
+        }
         const data = await req.json()
         const user = await req.payload.create({
           collection: 'users',
@@ -53,13 +56,16 @@ export const Users: CollectionConfig = {
       method: 'post',
       handler: async (req) => {
         const user = req.user
+
+        if (!req.json) {
+          return Response.json({ message: 'Неверный формат запроса' }, { status: 400 })
+        }
         const data = await req.json()
         const { name, newPassword } = data
 
         if (!user) {
           return Response.json({ error: 'Пользователь не авторизован' }, { status: 401 })
         }
-
 
         const updatedUser = await req.payload.update({
           collection: 'users',

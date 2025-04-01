@@ -59,7 +59,10 @@ export const Events: CollectionConfig = {
         if (!user) {
           return Response.json({ message: 'Пожалуйста, войдите в систему' }, { status: 401 })
         }
-        const events = await req.payload.find({ collection: 'events', where: { users: { equals: user.id } } })
+        const events = await req.payload.find({
+          collection: 'events',
+          where: { users: { equals: user.id } },
+        })
         return Response.json(events)
       },
     },
@@ -67,6 +70,9 @@ export const Events: CollectionConfig = {
       path: '/create-event',
       method: 'post',
       handler: async (req) => {
+        if (!req.formData) {
+          return Response.json({ message: 'Неверный формат запроса' }, { status: 400 })
+        }
         const formData = await req.formData()
 
         if (!req.user) {
@@ -141,58 +147,65 @@ export const Events: CollectionConfig = {
       path: '/single-event',
       method: 'post',
       handler: async (req) => {
+        if (!req.json) {
+          return Response.json({ message: 'Неверный формат запроса' }, { status: 400 })
+        }
+        const { eventId } = await req.json()
+
         if (!req.user) {
           return Response.json({ message: 'Пожалуйста, войдите в систему' }, { status: 401 })
         }
 
         try {
-          const data = await req.json()
-          const { eventId } = data
-
-          if (!eventId) {
-            return Response.json({ message: 'ID события не указан' }, { status: 400 })
-          }
-
           const event = await req.payload.findByID({
             collection: 'events',
-            id: eventId,
+            id: Number(eventId),
+            depth: 2,
           })
 
-          const dept_me = event.actions?.filter((action) => action.from.id === req.user.id)
-          const dept_to_me = event.actions?.filter((action) => action.to.id === req.user.id)
-
-          const summ = event.actions?.reduce((acc, action) => acc + action.amount, 0)
-          const deptMeResult = dept_me?.map((action) => {
-            return {
-              name: action.to.name,
-              amount: action.amount,
-              object: action.name,
-              id: action.id,
-            }
-          })
-
-          const deptToMeResult = dept_to_me?.map((action) => {
-            return {
-              name: action.from.name,
-              amount: action.amount,
-              object: action.name,
-              id: action.id,
-            }
-          })
           if (!event) {
             return Response.json({ message: 'Событие не найдено' }, { status: 404 })
           }
 
-          // Получаем все действия с расширенными данными
+          // Получаем все действия для события
+          const actions = await req.payload.find({
+            collection: 'actions',
+            where: {
+              id: {
+                in: event.actions || [],
+              },
+            },
+            depth: 2,
+          })
+
+          // Рассчитываем общую сумму расходов
+          const totalExpenses = actions.docs.reduce((sum, action) => sum + Number(action.amount), 0)
+
+          // Рассчитываем долги
+          const deptMe = actions.docs
+            .filter((action) => action.from === (req.user as any).id)
+            .map((action) => ({
+              id: action.id,
+              name: (action.to as any).name,
+              amount: Number(action.amount),
+              object: action.name,
+            }))
+
+          const deptToMe = actions.docs
+            .filter((action) => action.to === (req.user as any).id)
+            .map((action) => ({
+              id: action.id,
+              name: (action.from as any).name,
+              amount: Number(action.amount),
+              object: action.name,
+            }))
 
           return Response.json({
             ...event,
-            deptMe: deptMeResult,
-            deptToMe: deptToMeResult,
-            summ: summ,
-            currentUser: {
-              id: req.user.id,
-            },
+            totalExpenses,
+            deptMe,
+            deptToMe,
+            currentUser: req.user,
           })
         } catch (error) {
           return Response.json(
@@ -206,50 +219,47 @@ export const Events: CollectionConfig = {
       path: '/add-expensive',
       method: 'post',
       handler: async (req) => {
+        if (!req.json) {
+          return Response.json({ message: 'Неверный формат запроса' }, { status: 400 })
+        }
+        const { name, eventId, to, amount } = await req.json()
+
         if (!req.user) {
           return Response.json({ message: 'Пожалуйста, войдите в систему' }, { status: 401 })
         }
 
         try {
-          const data = await req.json()
-          const { name, eventId, to, amount } = data
-
-          if (!eventId || !to || !amount || !name) {
-            return Response.json({ message: 'ID события не указан' }, { status: 400 })
-          }
-
-          const newAction = await req.payload.create({
-            collection: 'actions',
-            data: {
-              name: name,
-              from: req.user.id,
-              to: Number(to),
-              amount: Number(amount),
-            },
-          })
-
           const event = await req.payload.findByID({
             collection: 'events',
             id: Number(eventId),
-          })
-
-          const newEvent = await req.payload.update({
-            collection: 'events',
-            id: Number(eventId),
-            data: {
-              amount: Number(event.amount) + Number(amount),
-              actions: [...(event.actions || []), newAction.id],
-            },
           })
 
           if (!event) {
             return Response.json({ message: 'Событие не найдено' }, { status: 404 })
           }
 
-          return Response.json('success')
+          const action = await req.payload.create({
+            collection: 'actions',
+            data: {
+              name,
+              from: req.user.id,
+              to: Number(to),
+              amount: Number(amount),
+            },
+          })
+
+          const updatedEvent = await req.payload.update({
+            collection: 'events',
+            id: Number(eventId),
+            data: {
+              actions: [...(event.actions || []), action.id],
+            },
+          })
+
+          return Response.json({ action, updatedEvent })
         } catch (error) {
           return Response.json(
-            { message: 'Произошла ошибка при получении события' },
+            { message: 'Произошла ошибка при добавлении расхода' },
             { status: 500 },
           )
         }
@@ -259,19 +269,16 @@ export const Events: CollectionConfig = {
       path: '/remove-action',
       method: 'post',
       handler: async (req) => {
+        if (!req.json) {
+          return Response.json({ message: 'Неверный формат запроса' }, { status: 400 })
+        }
+        const { eventId, actionId } = await req.json()
+
         if (!req.user) {
           return Response.json({ message: 'Пожалуйста, войдите в систему' }, { status: 401 })
         }
 
         try {
-          const data = await req.json()
-          console.log(data)
-          const { eventId, actionId } = data
-
-          if (!eventId || !actionId) {
-            return Response.json({ message: 'ID события или действия не указан' }, { status: 400 })
-          }
-
           const event = await req.payload.findByID({
             collection: 'events',
             id: Number(eventId),
@@ -282,18 +289,12 @@ export const Events: CollectionConfig = {
           }
 
           const updatedActions = event.actions?.filter((action) => action !== actionId) || []
-
           await req.payload.update({
             collection: 'events',
             id: Number(eventId),
             data: {
               actions: updatedActions,
             },
-          })
-
-          await req.payload.delete({
-            collection: 'actions',
-            id: Number(actionId),
           })
 
           return Response.json({ message: 'Действие успешно удалено' })

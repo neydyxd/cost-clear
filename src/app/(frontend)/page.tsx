@@ -45,6 +45,7 @@ interface Event {
   description: string
   date: string
   location: string
+  amount: number
   image: {
     url: string
   }
@@ -538,8 +539,8 @@ export default function HomePage() {
                     }
                     category="Мероприятие"
                     totalCost={event.amount || 0}
-                    participants={event.users || []}
-                    expenses={event.actions || []}
+                    participants={event.participants || []}
+                    expenses={event.expenses || []}
                   />
                 ))}
               </SimpleGrid>

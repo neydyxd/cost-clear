@@ -332,7 +332,12 @@ export default function EventPage() {
   return (
     <Container maxW="container.xl" py={8}>
       <VStack spacing={8} align="stretch">
-        <Box position="relative" height="400px" borderRadius="lg" overflow="hidden">
+        <Box
+          position="relative"
+          height={{ base: '200px', md: '400px' }}
+          borderRadius="lg"
+          overflow="hidden"
+        >
           <Image
             src={
               event.image?.url ||
@@ -348,19 +353,19 @@ export default function EventPage() {
             bottom={0}
             left={0}
             right={0}
-            p={6}
+            p={{ base: 4, md: 6 }}
             bgGradient="linear(to-t, blackAlpha.800, transparent)"
           >
             <Badge colorScheme="teal" borderRadius="full" px={3} py={1} mb={2}>
               Событие
             </Badge>
-            <Heading color="white" size="2xl">
+            <Heading color="white" size={{ base: 'xl', md: '2xl' }}>
               {event.name}
             </Heading>
           </Box>
         </Box>
 
-        <StatGroup>
+        <StatGroup flexDirection={{ base: 'column', md: 'row' }} gap={{ base: 4, md: 0 }}>
           <Stat>
             <StatLabel color="gray.400">Общая стоимость</StatLabel>
             <StatNumber color="white">{event.amount} ₽</StatNumber>
@@ -391,13 +396,18 @@ export default function EventPage() {
 
         <Progress value={paymentProgress} colorScheme="teal" size="lg" borderRadius="full" />
 
-        <HStack spacing={8} align="start">
-          <Box flex={1}>
+        <HStack
+          spacing={{ base: 4, md: 8 }}
+          align="start"
+          flexDirection={{ base: 'column', md: 'row' }}
+          width="100%"
+        >
+          <Box flex={1} width="100%">
             <VStack spacing={6} align="stretch">
-              <Heading size="lg" color="white">
+              <Heading size={{ base: 'md', md: 'lg' }} color="white">
                 О мероприятии
               </Heading>
-              <Text color="gray.300" fontSize="lg">
+              <Text color="gray.300" fontSize={{ base: 'md', md: 'lg' }}>
                 {event.description}
               </Text>
 
@@ -405,13 +415,13 @@ export default function EventPage() {
 
               <VStack spacing={4} align="stretch">
                 <HStack>
-                  <Text color="gray.400" fontWeight="bold" width="150px">
+                  <Text color="gray.400" fontWeight="bold" width={{ base: '100px', md: '150px' }}>
                     Дата:
                   </Text>
                   <Text color="white">{new Date(event.date).toLocaleDateString('ru-RU')}</Text>
                 </HStack>
                 <HStack>
-                  <Text color="gray.400" fontWeight="bold" width="150px">
+                  <Text color="gray.400" fontWeight="bold" width={{ base: '100px', md: '150px' }}>
                     Место:
                   </Text>
                   <Text color="white">{event.location}</Text>
@@ -420,15 +430,24 @@ export default function EventPage() {
 
               <Divider borderColor="gray.600" />
               <Divider borderColor="gray.600" />
-              <Box>
+              <Box overflowX="auto" width="100%">
                 <Heading size="md" color="white" mb={4}>
                   Участники
                 </Heading>
-                <Table variant="simple" colorScheme="whiteAlpha">
+                <Table
+                  variant="simple"
+                  colorScheme="whiteAlpha"
+                  size={{ base: 'sm', md: 'md' }}
+                  width="100%"
+                >
                   <Thead>
                     <Tr>
-                      <Th color="gray.400">Имя</Th>
-                      <Th color="gray.400">Роль</Th>
+                      <Th color="gray.400" width="50%">
+                        Имя
+                      </Th>
+                      <Th color="gray.400" width="50%">
+                        Роль
+                      </Th>
                     </Tr>
                   </Thead>
                   <Tbody>
@@ -441,17 +460,30 @@ export default function EventPage() {
                   </Tbody>
                 </Table>
               </Box>
-              <Box>
+              <Box overflowX="auto" width="100%">
                 <Heading size="md" color="white" mb={4}>
                   Расходы
                 </Heading>
-                <Table variant="simple" colorScheme="whiteAlpha">
+                <Table
+                  variant="simple"
+                  colorScheme="whiteAlpha"
+                  size={{ base: 'sm', md: 'md' }}
+                  width="100%"
+                >
                   <Thead>
                     <Tr>
-                      <Th color="gray.400">Описание</Th>
-                      <Th color="gray.400">Сумма</Th>
-                      <Th color="gray.400">Оплатил</Th>
-                      <Th color="gray.400">Дата</Th>
+                      <Th color="gray.400" width="40%">
+                        Описание
+                      </Th>
+                      <Th color="gray.400" width="20%">
+                        Сумма
+                      </Th>
+                      <Th color="gray.400" width="20%" display={{ base: 'none', md: 'table-cell' }}>
+                        Оплатил
+                      </Th>
+                      <Th color="gray.400" width="20%" display={{ base: 'none', md: 'table-cell' }}>
+                        Дата
+                      </Th>
                     </Tr>
                   </Thead>
                   <Tbody>
@@ -459,8 +491,10 @@ export default function EventPage() {
                       <Tr key={purchase.id}>
                         <Td color="white">{purchase.name}</Td>
                         <Td color="gray.300">{purchase.amount} ₽</Td>
-                        <Td color="gray.300">{purchase.user.name}</Td>
-                        <Td color="gray.300">
+                        <Td color="gray.300" display={{ base: 'none', md: 'table-cell' }}>
+                          {purchase.user.name}
+                        </Td>
+                        <Td color="gray.300" display={{ base: 'none', md: 'table-cell' }}>
                           {new Date(purchase.date).toLocaleDateString('ru-RU')}
                         </Td>
                       </Tr>
@@ -480,7 +514,7 @@ export default function EventPage() {
                     <Box
                       key={dept.name}
                       bg="gray.800"
-                      p={4}
+                      p={{ base: 3, md: 4 }}
                       borderRadius="lg"
                       border="1px"
                       borderColor="red.500"
@@ -488,10 +522,10 @@ export default function EventPage() {
                       <Text color="white" fontWeight="bold">
                         {dept.name}
                       </Text>
-                      <Text color="red.400" fontSize="lg">
+                      <Text color="red.400" fontSize={{ base: 'md', md: 'lg' }}>
                         Должен {dept.amount} ₽
                       </Text>
-                      <Text color="gray.400" fontSize="sm">
+                      <Text color="gray.400" fontSize={{ base: 'xs', md: 'sm' }}>
                         За что: {dept.object}
                       </Text>
                     </Box>
@@ -510,20 +544,38 @@ export default function EventPage() {
                     <Box
                       key={dept.name}
                       bg="gray.800"
-                      p={3}
+                      p={{ base: 3, md: 3 }}
                       borderRadius="lg"
                       border="1px"
                       borderColor="green.500"
                     >
-                      <HStack justify="space-between" align="center">
+                      <HStack
+                        justify="space-between"
+                        align="center"
+                        flexDirection={{ base: 'column', md: 'row' }}
+                        spacing={{ base: 2, md: 0 }}
+                      >
                         <VStack align="start" spacing={0}>
-                          <Text color="white" fontWeight="bold" fontSize="sm" margin="12px 0">
+                          <Text
+                            color="white"
+                            fontWeight="bold"
+                            fontSize={{ base: 'sm', md: 'sm' }}
+                            margin="12px 0"
+                          >
                             {dept.name}
                           </Text>
-                          <Text color="green.400" fontSize="md" margin="12px 0">
+                          <Text
+                            color="green.400"
+                            fontSize={{ base: 'md', md: 'md' }}
+                            margin="12px 0"
+                          >
                             Должна мне {dept.amount} ₽
                           </Text>
-                          <Text color="gray.400" fontSize="xs" margin="12px 0">
+                          <Text
+                            color="gray.400"
+                            fontSize={{ base: 'xs', md: 'xs' }}
+                            margin="12px 0"
+                          >
                             За что: {dept.object}
                           </Text>
                         </VStack>
@@ -532,6 +584,7 @@ export default function EventPage() {
                           colorScheme="green"
                           variant="outline"
                           onClick={() => handleRemoveAction(dept.id)}
+                          mt={{ base: 2, md: 0 }}
                         >
                           Долг погашен
                         </Button>
@@ -543,19 +596,27 @@ export default function EventPage() {
             </VStack>
           </Box>
 
-          <Box bg="gray.800" p={6} borderRadius="lg" width="300px" position="sticky" top={8}>
+          <Box
+            bg="gray.800"
+            p={{ base: 4, md: 6 }}
+            borderRadius="lg"
+            width={{ base: '100%', md: '300px' }}
+            position={{ base: 'relative', md: 'sticky' }}
+            top={8}
+            mt={{ base: 4, md: 0 }}
+          >
             <VStack spacing={4} align="stretch">
-              <Text color="white" fontSize="xl" fontWeight="bold">
+              <Text color="white" fontSize={{ base: 'lg', md: 'xl' }} fontWeight="bold">
                 Выставить счет
               </Text>
-              <Button colorScheme="teal" size="lg" onClick={onOpen}>
+              <Button colorScheme="teal" size={{ base: 'md', md: 'lg' }} onClick={onOpen}>
                 Выставить
               </Button>
               <Divider borderColor="gray.600" />
-              <Text color="white" fontSize="xl" fontWeight="bold">
+              <Text color="white" fontSize={{ base: 'lg', md: 'xl' }} fontWeight="bold">
                 Добавить расход
               </Text>
-              <Button colorScheme="purple" size="lg" onClick={onPurchaseOpen}>
+              <Button colorScheme="purple" size={{ base: 'md', md: 'lg' }} onClick={onPurchaseOpen}>
                 Добавить
               </Button>
             </VStack>

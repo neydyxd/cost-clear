@@ -30,8 +30,11 @@ export const Purchase: CollectionConfig = {
       path: '/add-purchase',
       method: 'post',
       handler: async (req) => {
-        const { name, amount, date, eventId } = await req.json();
-        const user = req.user;
+        if (!req.json) {
+          return Response.json({ message: 'Неверный формат запроса' }, { status: 400 })
+        }
+        const { name, amount, date, eventId } = await req.json()
+        const user = req.user
         if (!user) {
           return Response.json({ message: 'Пользователь не авторизован' }, { status: 401 })
         }
