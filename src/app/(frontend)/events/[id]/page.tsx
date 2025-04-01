@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import {
   Box,
   Container,
@@ -26,87 +26,319 @@ import {
   StatHelpText,
   StatArrow,
   StatGroup,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalCloseButton,
+  FormControl,
+  FormLabel,
+  Input,
+  Select,
+  useDisclosure,
 } from '@chakra-ui/react'
 import { useParams } from 'next/navigation'
 
-// Моковые данные (в реальном приложении будут загружаться с сервера)
-const mockEvent = {
-  id: '1',
-  title: 'Пикник в парке',
-  description:
-    'Весенний пикник с играми, музыкой и вкусной едой. Приглашаем всех желающих присоединиться к нашему дружному коллективу!',
-  date: '10 июня 2024',
-  time: '12:00',
-  location: 'Центральный парк',
-  address: 'ул. Парковая, 1',
-  imageUrl:
-    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80',
-  category: 'Отдых',
-  totalCost: 5000,
-  participants: [
-    {
-      id: '1',
-      name: 'Алексей Петров',
-      role: 'организатор',
-      paid: 2000,
-      owes: 0,
-      items: ['Мангал', 'Уголь'],
-    },
-    {
-      id: '2',
-      name: 'Мария Иванова',
-      role: 'участник',
-      paid: 1000,
-      owes: 500,
-      items: ['Салаты'],
-    },
-    {
-      id: '3',
-      name: 'Дмитрий Сидоров',
-      role: 'участник',
-      paid: 0,
-      owes: 1000,
-      items: ['Мясо'],
-    },
-  ],
-  expenses: [
-    {
-      id: '1',
-      description: 'Мангал и уголь',
-      amount: 2000,
-      paidBy: 'Алексей Петров',
-      date: '2024-06-10',
-    },
-    {
-      id: '2',
-      description: 'Мясо',
-      amount: 3000,
-      paidBy: 'Дмитрий Сидоров',
-      date: '2024-06-10',
-    },
-  ],
+interface Event {
+  id: string
+  name: string
+  description: string
+  date: string
+  location: string
+  amount: number
+  summ: number
+  image: {
+    url: string
+  }
+  users: Array<{
+    id: string
+    name: string
+  }>
+  actions: Array<{
+    id: string
+    name: string
+    amount: number
+    createdAt: string
+    from: {
+      name: string
+    }
+  }>
+  purchases: Array<{
+    id: string
+    name: string
+    amount: number
+    date: string
+    user: {
+      id: string
+      name: string
+    }
+  }>
+  currentUser: {
+    id: string
+  }
+  deptMe?: Array<{
+    id: string
+    name: string
+    amount: number
+    object: string
+  }>
+  deptToMe?: Array<{
+    id: string
+    name: string
+    amount: number
+    object: string
+  }>
 }
 
 export default function EventPage() {
   const params = useParams()
   const toast = useToast()
+  const { isOpen, onOpen, onClose } = useDisclosure()
+  const {
+    isOpen: isPurchaseOpen,
+    onOpen: onPurchaseOpen,
+    onClose: onPurchaseClose,
+  } = useDisclosure()
+  const [event, setEvent] = useState<Event | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [formData, setFormData] = useState({
+    name: '',
+    to: '',
+    amount: '',
+  })
+  const [purchaseData, setPurchaseData] = useState({
+    name: '',
+    amount: '',
+    date: new Date().toISOString().split('T')[0],
+  })
 
-  // Расчет общей суммы долгов
-  const totalDebts = mockEvent.participants.reduce((sum, participant) => sum + participant.owes, 0)
+  useEffect(() => {
+    const fetchEvent = async () => {
+      try {
+        const response = await fetch('/api/events/single-event', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ eventId: params.id }),
+        })
 
-  // Расчет общей суммы оплаченных средств
-  const totalPaid = mockEvent.participants.reduce((sum, participant) => sum + participant.paid, 0)
+        if (!response.ok) {
+          const data = await response.json()
+          throw new Error(data.message || 'Ошибка при загрузке события')
+        }
 
-  // Расчет прогресса оплаты
-  const paymentProgress = (totalPaid / mockEvent.totalCost) * 100
+        const data = await response.json()
+        setEvent(data)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Произошла ошибка')
+        toast({
+          title: 'Ошибка',
+          description: err instanceof Error ? err.message : 'Произошла ошибка при загрузке события',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchEvent()
+  }, [params.id, toast])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const response = await fetch('/api/events/add-expensive', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: formData.name,
+          eventId: params.id,
+          to: formData.to,
+          amount: Number(formData.amount),
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || 'Ошибка при добавлении расхода')
+      }
+
+      toast({
+        title: 'Успех',
+        description: 'Расход успешно добавлен',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      })
+
+      onClose()
+      setFormData({ name: '', to: '', amount: '' })
+
+      // Обновляем данные события
+      const updatedEvent = await fetch('/api/events/single-event', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ eventId: params.id }),
+      }).then((res) => res.json())
+
+      setEvent(updatedEvent)
+    } catch (err) {
+      toast({
+        title: 'Ошибка',
+        description: err instanceof Error ? err.message : 'Произошла ошибка при добавлении расхода',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      })
+    }
+  }
+
+  const handleRemoveAction = async (actionId: string) => {
+    try {
+      const response = await fetch('/api/events/remove-action', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          eventId: params.id,
+          actionId,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || 'Ошибка при удалении действия')
+      }
+
+      toast({
+        title: 'Успех',
+        description: 'Долг отмечен как погашенный',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      })
+
+      // Обновляем данные события
+      const updatedEvent = await fetch('/api/events/single-event', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ eventId: params.id }),
+      }).then((res) => res.json())
+
+      setEvent(updatedEvent)
+    } catch (err) {
+      toast({
+        title: 'Ошибка',
+        description: err instanceof Error ? err.message : 'Произошла ошибка при удалении действия',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      })
+    }
+  }
+
+  const handlePurchaseSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const response = await fetch('/api/purchase/add-purchase', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: purchaseData.name,
+          amount: Number(purchaseData.amount),
+          date: purchaseData.date,
+          eventId: params.id,
+        }),
+      })
+
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || 'Ошибка при добавлении покупки')
+      }
+
+      toast({
+        title: 'Успех',
+        description: 'Покупка успешно добавлена',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      })
+
+      onPurchaseClose()
+      setPurchaseData({ name: '', amount: '', date: new Date().toISOString().split('T')[0] })
+
+      // Обновляем данные события
+      const updatedEvent = await fetch('/api/events/single-event', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ eventId: params.id }),
+      }).then((res) => res.json())
+
+      setEvent(updatedEvent)
+    } catch (err) {
+      toast({
+        title: 'Ошибка',
+        description: err instanceof Error ? err.message : 'Произошла ошибка при добавлении покупки',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      })
+    }
+  }
+
+  if (loading) {
+    return (
+      <Container maxW="container.xl" py={8}>
+        <VStack spacing={8} align="stretch">
+          <Progress size="xs" isIndeterminate />
+        </VStack>
+      </Container>
+    )
+  }
+
+  if (error || !event) {
+    return (
+      <Container maxW="container.xl" py={8}>
+        <VStack spacing={8} align="stretch">
+          <Box p={6} bg="red.50" borderRadius="lg">
+            <Text color="red.500">{error || 'Событие не найдено'}</Text>
+          </Box>
+        </VStack>
+      </Container>
+    )
+  }
+
+  // Расчет общей суммы долгов (моковые данные)
+  const totalPaid = event.amount - event.summ
+  const totalDebts = event.amount - totalPaid
+  const paymentProgress = (totalPaid / event.amount) * 100
 
   return (
     <Container maxW="container.xl" py={8}>
       <VStack spacing={8} align="stretch">
         <Box position="relative" height="400px" borderRadius="lg" overflow="hidden">
           <Image
-            src={mockEvent.imageUrl}
-            alt={mockEvent.title}
+            src={
+              event.image?.url ||
+              'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-1.2.1&auto=format&fit=crop&w=1200&q=80'
+            }
+            alt={event.name}
             objectFit="cover"
             width="100%"
             height="100%"
@@ -120,10 +352,10 @@ export default function EventPage() {
             bgGradient="linear(to-t, blackAlpha.800, transparent)"
           >
             <Badge colorScheme="teal" borderRadius="full" px={3} py={1} mb={2}>
-              {mockEvent.category}
+              Событие
             </Badge>
             <Heading color="white" size="2xl">
-              {mockEvent.title}
+              {event.name}
             </Heading>
           </Box>
         </Box>
@@ -131,18 +363,20 @@ export default function EventPage() {
         <StatGroup>
           <Stat>
             <StatLabel color="gray.400">Общая стоимость</StatLabel>
-            <StatNumber color="white">{mockEvent.totalCost} ₽</StatNumber>
-            <StatHelpText color="gray.400">
-              <StatArrow type="increase" />
-              Оплачено {paymentProgress.toFixed(1)}%
-            </StatHelpText>
+            <StatNumber color="white">{event.amount} ₽</StatNumber>
+            {!Number.isNaN(paymentProgress) && (
+              <StatHelpText color="gray.400">
+                <StatArrow type="increase" />
+                {`Оплачено ${paymentProgress.toFixed(1)}%`}
+              </StatHelpText>
+            )}
           </Stat>
           <Stat>
             <StatLabel color="gray.400">Оплачено</StatLabel>
             <StatNumber color="white">{totalPaid} ₽</StatNumber>
             <StatHelpText color="gray.400">
               <StatArrow type="increase" />
-              {mockEvent.participants.length} участников
+              {event.users.length} участников
             </StatHelpText>
           </Stat>
           <Stat>
@@ -164,7 +398,7 @@ export default function EventPage() {
                 О мероприятии
               </Heading>
               <Text color="gray.300" fontSize="lg">
-                {mockEvent.description}
+                {event.description}
               </Text>
 
               <Divider borderColor="gray.600" />
@@ -174,30 +408,18 @@ export default function EventPage() {
                   <Text color="gray.400" fontWeight="bold" width="150px">
                     Дата:
                   </Text>
-                  <Text color="white">{mockEvent.date}</Text>
-                </HStack>
-                <HStack>
-                  <Text color="gray.400" fontWeight="bold" width="150px">
-                    Время:
-                  </Text>
-                  <Text color="white">{mockEvent.time}</Text>
+                  <Text color="white">{new Date(event.date).toLocaleDateString('ru-RU')}</Text>
                 </HStack>
                 <HStack>
                   <Text color="gray.400" fontWeight="bold" width="150px">
                     Место:
                   </Text>
-                  <Text color="white">{mockEvent.location}</Text>
-                </HStack>
-                <HStack>
-                  <Text color="gray.400" fontWeight="bold" width="150px">
-                    Адрес:
-                  </Text>
-                  <Text color="white">{mockEvent.address}</Text>
+                  <Text color="white">{event.location}</Text>
                 </HStack>
               </VStack>
 
               <Divider borderColor="gray.600" />
-
+              <Divider borderColor="gray.600" />
               <Box>
                 <Heading size="md" color="white" mb={4}>
                   Участники
@@ -207,29 +429,18 @@ export default function EventPage() {
                     <Tr>
                       <Th color="gray.400">Имя</Th>
                       <Th color="gray.400">Роль</Th>
-                      <Th color="gray.400">Оплачено</Th>
-                      <Th color="gray.400">Долг</Th>
-                      <Th color="gray.400">За что отвечает</Th>
                     </Tr>
                   </Thead>
                   <Tbody>
-                    {mockEvent.participants.map((participant) => (
-                      <Tr key={participant.id}>
-                        <Td color="white">{participant.name}</Td>
-                        <Td color="gray.300">{participant.role}</Td>
-                        <Td color="green.400">{participant.paid} ₽</Td>
-                        <Td color={participant.owes > 0 ? 'red.400' : 'gray.300'}>
-                          {participant.owes} ₽
-                        </Td>
-                        <Td color="gray.300">{participant.items.join(', ')}</Td>
+                    {event.users.map((user) => (
+                      <Tr key={user.id}>
+                        <Td color="white">{user.name}</Td>
+                        <Td color="gray.300">участник</Td>
                       </Tr>
                     ))}
                   </Tbody>
                 </Table>
               </Box>
-
-              <Divider borderColor="gray.600" />
-
               <Box>
                 <Heading size="md" color="white" mb={4}>
                   Расходы
@@ -244,12 +455,14 @@ export default function EventPage() {
                     </Tr>
                   </Thead>
                   <Tbody>
-                    {mockEvent.expenses.map((expense) => (
-                      <Tr key={expense.id}>
-                        <Td color="white">{expense.description}</Td>
-                        <Td color="gray.300">{expense.amount} ₽</Td>
-                        <Td color="gray.300">{expense.paidBy}</Td>
-                        <Td color="gray.300">{expense.date}</Td>
+                    {event.purchases?.map((purchase) => (
+                      <Tr key={purchase.id}>
+                        <Td color="white">{purchase.name}</Td>
+                        <Td color="gray.300">{purchase.amount} ₽</Td>
+                        <Td color="gray.300">{purchase.user.name}</Td>
+                        <Td color="gray.300">
+                          {new Date(purchase.date).toLocaleDateString('ru-RU')}
+                        </Td>
                       </Tr>
                     ))}
                   </Tbody>
@@ -263,31 +476,26 @@ export default function EventPage() {
                   Кому я должен
                 </Heading>
                 <VStack spacing={4} align="stretch">
-                  {mockEvent.participants.map((participant) => {
-                    if (participant.owes > 0) {
-                      return (
-                        <Box
-                          key={participant.id}
-                          bg="gray.800"
-                          p={4}
-                          borderRadius="lg"
-                          border="1px"
-                          borderColor="red.500"
-                        >
-                          <Text color="white" fontWeight="bold">
-                            {participant.name}
-                          </Text>
-                          <Text color="red.400" fontSize="lg">
-                            Должен {participant.owes} ₽
-                          </Text>
-                          <Text color="gray.400" fontSize="sm">
-                            За что: {participant.items.join(', ')}
-                          </Text>
-                        </Box>
-                      )
-                    }
-                    return null
-                  })}
+                  {event.deptToMe?.map((dept) => (
+                    <Box
+                      key={dept.name}
+                      bg="gray.800"
+                      p={4}
+                      borderRadius="lg"
+                      border="1px"
+                      borderColor="red.500"
+                    >
+                      <Text color="white" fontWeight="bold">
+                        {dept.name}
+                      </Text>
+                      <Text color="red.400" fontSize="lg">
+                        Должен {dept.amount} ₽
+                      </Text>
+                      <Text color="gray.400" fontSize="sm">
+                        За что: {dept.object}
+                      </Text>
+                    </Box>
+                  ))}
                 </VStack>
               </Box>
 
@@ -298,31 +506,38 @@ export default function EventPage() {
                   Кто мне должен
                 </Heading>
                 <VStack spacing={4} align="stretch">
-                  {mockEvent.participants.map((participant) => {
-                    if (participant.owes > 0) {
-                      return (
-                        <Box
-                          key={participant.id}
-                          bg="gray.800"
-                          p={4}
-                          borderRadius="lg"
-                          border="1px"
-                          borderColor="green.500"
+                  {event.deptMe?.map((dept) => (
+                    <Box
+                      key={dept.name}
+                      bg="gray.800"
+                      p={3}
+                      borderRadius="lg"
+                      border="1px"
+                      borderColor="green.500"
+                    >
+                      <HStack justify="space-between" align="center">
+                        <VStack align="start" spacing={0}>
+                          <Text color="white" fontWeight="bold" fontSize="sm" margin="12px 0">
+                            {dept.name}
+                          </Text>
+                          <Text color="green.400" fontSize="md" margin="12px 0">
+                            Должна мне {dept.amount} ₽
+                          </Text>
+                          <Text color="gray.400" fontSize="xs" margin="12px 0">
+                            За что: {dept.object}
+                          </Text>
+                        </VStack>
+                        <Button
+                          size="xs"
+                          colorScheme="green"
+                          variant="outline"
+                          onClick={() => handleRemoveAction(dept.id)}
                         >
-                          <Text color="white" fontWeight="bold">
-                            {participant.name}
-                          </Text>
-                          <Text color="green.400" fontSize="lg">
-                            Должен мне {participant.owes} ₽
-                          </Text>
-                          <Text color="gray.400" fontSize="sm">
-                            За что: {participant.items.join(', ')}
-                          </Text>
-                        </Box>
-                      )
-                    }
-                    return null
-                  })}
+                          Долг погашен
+                        </Button>
+                      </HStack>
+                    </Box>
+                  ))}
                 </VStack>
               </Box>
             </VStack>
@@ -331,22 +546,150 @@ export default function EventPage() {
           <Box bg="gray.800" p={6} borderRadius="lg" width="300px" position="sticky" top={8}>
             <VStack spacing={4} align="stretch">
               <Text color="white" fontSize="xl" fontWeight="bold">
-                Добавить расход
+                Выставить счет
               </Text>
-              <Button colorScheme="teal" size="lg">
-                Добавить
+              <Button colorScheme="teal" size="lg" onClick={onOpen}>
+                Выставить
               </Button>
               <Divider borderColor="gray.600" />
               <Text color="white" fontSize="xl" fontWeight="bold">
-                Погасить долг
+                Добавить расход
               </Text>
-              <Button colorScheme="green" size="lg">
-                Погасить
+              <Button colorScheme="purple" size="lg" onClick={onPurchaseOpen}>
+                Добавить
               </Button>
             </VStack>
           </Box>
         </HStack>
       </VStack>
+
+      <Modal isOpen={isOpen} onClose={onClose} size="md">
+        <ModalOverlay backdropFilter="blur(10px)" />
+        <ModalContent bg="gray.800">
+          <ModalHeader color="white">Добавить расход</ModalHeader>
+          <ModalCloseButton color="white" />
+          <ModalBody pb={6}>
+            <form onSubmit={handleSubmit}>
+              <VStack spacing={4}>
+                <FormControl isRequired>
+                  <FormLabel color="white">Название расхода</FormLabel>
+                  <Input
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Например: Мангал и уголь"
+                    bg="gray.700"
+                    borderColor="gray.600"
+                    color="white"
+                    _hover={{ borderColor: 'gray.500' }}
+                    _focus={{ borderColor: 'teal.500' }}
+                  />
+                </FormControl>
+
+                <FormControl isRequired>
+                  <FormLabel color="white">Кому</FormLabel>
+                  <Select
+                    value={formData.to}
+                    onChange={(e) => setFormData({ ...formData, to: e.target.value })}
+                    placeholder="Выберите участника"
+                    bg="gray.700"
+                    borderColor="gray.600"
+                    color="white"
+                    _hover={{ borderColor: 'gray.500' }}
+                    _focus={{ borderColor: 'teal.500' }}
+                  >
+                    {event?.users
+                      .filter((user) => user.id !== event.currentUser.id)
+                      .map((user) => (
+                        <option key={user.id} value={user.id}>
+                          {user.name}
+                        </option>
+                      ))}
+                  </Select>
+                </FormControl>
+
+                <FormControl isRequired>
+                  <FormLabel color="white">Сумма</FormLabel>
+                  <Input
+                    type="number"
+                    value={formData.amount}
+                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                    placeholder="Введите сумму"
+                    bg="gray.700"
+                    borderColor="gray.600"
+                    color="white"
+                    _hover={{ borderColor: 'gray.500' }}
+                    _focus={{ borderColor: 'teal.500' }}
+                  />
+                </FormControl>
+
+                <Button type="submit" colorScheme="teal" width="full" mt={4}>
+                  Добавить расход
+                </Button>
+              </VStack>
+            </form>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
+
+      <Modal isOpen={isPurchaseOpen} onClose={onPurchaseClose} size="md">
+        <ModalOverlay backdropFilter="blur(10px)" />
+        <ModalContent bg="gray.800">
+          <ModalHeader color="white">Добавить покупку</ModalHeader>
+          <ModalCloseButton color="white" />
+          <ModalBody pb={6}>
+            <form onSubmit={handlePurchaseSubmit}>
+              <VStack spacing={4}>
+                <FormControl isRequired>
+                  <FormLabel color="white">Название покупки</FormLabel>
+                  <Input
+                    value={purchaseData.name}
+                    onChange={(e) => setPurchaseData({ ...purchaseData, name: e.target.value })}
+                    placeholder="Например: Продукты"
+                    bg="gray.700"
+                    borderColor="gray.600"
+                    color="white"
+                    _hover={{ borderColor: 'gray.500' }}
+                    _focus={{ borderColor: 'purple.500' }}
+                  />
+                </FormControl>
+
+                <FormControl isRequired>
+                  <FormLabel color="white">Сумма</FormLabel>
+                  <Input
+                    type="number"
+                    value={purchaseData.amount}
+                    onChange={(e) => setPurchaseData({ ...purchaseData, amount: e.target.value })}
+                    placeholder="Введите сумму"
+                    bg="gray.700"
+                    borderColor="gray.600"
+                    color="white"
+                    _hover={{ borderColor: 'gray.500' }}
+                    _focus={{ borderColor: 'purple.500' }}
+                  />
+                </FormControl>
+
+                <FormControl isRequired>
+                  <FormLabel color="white">Дата</FormLabel>
+                  <Input
+                    type="date"
+                    value={purchaseData.date}
+                    onChange={(e) => setPurchaseData({ ...purchaseData, date: e.target.value })}
+                    bg="gray.700"
+                    borderColor="gray.600"
+                    color="white"
+                    _hover={{ borderColor: 'gray.500' }}
+                    _focus={{ borderColor: 'purple.500' }}
+                  />
+                </FormControl>
+
+                <Button type="submit" colorScheme="purple" width="full" mt={4}>
+                  Добавить покупку
+                </Button>
+              </VStack>
+            </form>
+          </ModalBody>
+        </ModalContent>
+      </Modal>
     </Container>
   )
 }

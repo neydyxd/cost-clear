@@ -70,6 +70,8 @@ export interface Config {
     users: User;
     media: Media;
     events: Event;
+    actions: Action;
+    purchase: Purchase;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -79,6 +81,8 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     events: EventsSelect<false> | EventsSelect<true>;
+    actions: ActionsSelect<false> | ActionsSelect<true>;
+    purchase: PurchaseSelect<false> | PurchaseSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -161,10 +165,39 @@ export interface Event {
   id: number;
   name: string;
   description: string;
+  amount?: number | null;
   date?: string | null;
   location?: string | null;
   image?: (number | null) | Media;
   users?: (number | User)[] | null;
+  actions?: (number | Action)[] | null;
+  purchases?: (number | Purchase)[] | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "actions".
+ */
+export interface Action {
+  id: number;
+  name: string;
+  from: number | User;
+  to: number | User;
+  amount: number;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "purchase".
+ */
+export interface Purchase {
+  id: number;
+  name: string;
+  amount: number;
+  user: number | User;
+  date?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -186,6 +219,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'events';
         value: number | Event;
+      } | null)
+    | ({
+        relationTo: 'actions';
+        value: number | Action;
+      } | null)
+    | ({
+        relationTo: 'purchase';
+        value: number | Purchase;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -271,10 +312,37 @@ export interface MediaSelect<T extends boolean = true> {
 export interface EventsSelect<T extends boolean = true> {
   name?: T;
   description?: T;
+  amount?: T;
   date?: T;
   location?: T;
   image?: T;
   users?: T;
+  actions?: T;
+  purchases?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "actions_select".
+ */
+export interface ActionsSelect<T extends boolean = true> {
+  name?: T;
+  from?: T;
+  to?: T;
+  amount?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "purchase_select".
+ */
+export interface PurchaseSelect<T extends boolean = true> {
+  name?: T;
+  amount?: T;
+  user?: T;
+  date?: T;
   updatedAt?: T;
   createdAt?: T;
 }

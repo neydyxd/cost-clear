@@ -154,7 +154,7 @@ export default function HomePage() {
   const fetchEvents = useCallback(async () => {
     setIsLoadingEvents(true)
     try {
-      const response = await fetch('/api/events')
+      const response = await fetch('/api/events/get-events')
       if (response.ok) {
         const data = await response.json()
         if (data.docs) {
@@ -537,9 +537,9 @@ export default function HomePage() {
                       event.image?.url || 'https://via.placeholder.com/400x300?text=Нет+изображения'
                     }
                     category="Мероприятие"
-                    totalCost={event.totalCost || 0}
-                    participants={event.participants || []}
-                    expenses={event.expenses || []}
+                    totalCost={event.amount || 0}
+                    participants={event.users || []}
+                    expenses={event.actions || []}
                   />
                 ))}
               </SimpleGrid>
