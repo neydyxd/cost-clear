@@ -38,7 +38,7 @@ export default function RegisterPage() {
     setIsLoading(true)
 
     try {
-      const response = await fetch('/api/users/custom-register', {
+      const response = await fetch('/api/users/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
