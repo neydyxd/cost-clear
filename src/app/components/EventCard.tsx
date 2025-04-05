@@ -13,7 +13,6 @@ import {
 } from '@chakra-ui/react'
 import { useRouter } from 'next/navigation'
 import { CalendarIcon } from '@chakra-ui/icons'
-import { User } from '@/payload-types'
 interface EventCardProps {
   id: string
   title: string
@@ -23,14 +22,7 @@ interface EventCardProps {
   imageUrl: string
   category: string
   totalCost: number
-  participants: {
-    id: string
-    name: string
-    role: string
-    paid: number
-    owes: number
-    items: string[]
-  }[]
+  participants: any[]
   expenses: {
     id: string
     description: string

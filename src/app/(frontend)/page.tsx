@@ -50,7 +50,7 @@ interface Event {
     url: string
   }
   users: User[]
-  totalCost: number
+  totalExpenses: number
   participants: {
     id: string
     name: string
@@ -538,8 +538,8 @@ export default function HomePage() {
                       event.image?.url || 'https://via.placeholder.com/400x300?text=Нет+изображения'
                     }
                     category="Мероприятие"
-                    totalCost={event.amount || 0}
-                    participants={event.participants || []}
+                    totalCost={event.totalExpenses || 0}
+                    participants={event.users || []}
                     expenses={event.expenses || []}
                   />
                 ))}

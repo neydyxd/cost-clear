@@ -46,7 +46,7 @@ interface Event {
   description: string
   date: string
   location: string
-  amount: number
+  totalExpenses: number
   summ: number
   image: {
     url: string
@@ -324,10 +324,9 @@ export default function EventPage() {
     )
   }
 
-  // Расчет общей суммы долгов (моковые данные)
-  const totalPaid = event.amount - event.summ
-  const totalDebts = event.amount - totalPaid
-  const paymentProgress = (totalPaid / event.amount) * 100
+  const totalPaid = event.totalExpenses ? event.totalExpenses - (event.summ || 0) : 0
+  const totalDebts = event.totalExpenses ? event.totalExpenses - totalPaid : 0
+  const paymentProgress = event.totalExpenses ? (totalPaid / event.totalExpenses) * 100 : 0
 
   return (
     <Container maxW="container.xl" py={8}>
@@ -368,7 +367,7 @@ export default function EventPage() {
         <StatGroup flexDirection={{ base: 'column', md: 'row' }} gap={{ base: 4, md: 0 }}>
           <Stat>
             <StatLabel color="gray.400">Общая стоимость</StatLabel>
-            <StatNumber color="white">{event.amount} ₽</StatNumber>
+            <StatNumber color="white">{event.totalExpenses} ₽</StatNumber>
             {!Number.isNaN(paymentProgress) && (
               <StatHelpText color="gray.400">
                 <StatArrow type="increase" />

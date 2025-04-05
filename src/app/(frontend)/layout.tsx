@@ -1,31 +1,28 @@
 import React from 'react'
 import './styles.css'
-import { ChakraProvider, Box } from '@chakra-ui/react'
-import { AuthProvider } from '@/app/context/AuthContext'
+import { Box } from '@chakra-ui/react'
 import Header from '@/app/components/Header'
 import Background from '@/app/components/Background'
+import { inter } from '../fonts'
+import { Providers } from '../providers'
 
 export const metadata = {
   description: 'A blank template using Payload in a Next.js app.',
   title: 'Payload Blank Template',
 }
 
-export default async function RootLayout(props: { children: React.ReactNode }) {
-  const { children } = props
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="ru" className={inter.variable}>
       <body>
-        <AuthProvider>
-          <ChakraProvider>
-            <Background>
-              <Header />
-              <Box as="main" pt="70px">
-                {children}
-              </Box>
-            </Background>
-          </ChakraProvider>
-        </AuthProvider>
+        <Providers>
+          <Background>
+            <Header />
+            <Box as="main" pt="70px">
+              {children}
+            </Box>
+          </Background>
+        </Providers>
       </body>
     </html>
   )

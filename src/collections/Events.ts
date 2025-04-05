@@ -1,3 +1,4 @@
+import { Action } from '@/payload-types'
 import type { CollectionConfig } from 'payload'
 
 export const Events: CollectionConfig = {
@@ -168,22 +169,41 @@ export const Events: CollectionConfig = {
           }
 
           // Получаем все действия для события
-          const actions = await req.payload.find({
-            collection: 'actions',
-            where: {
-              id: {
-                in: event.actions || [],
-              },
-            },
-            depth: 2,
-          })
+          let actions: { docs: Action[] } = { docs: [] }
 
-          // Рассчитываем общую сумму расходов
+          // Проверяем, есть ли действия в событии
+          if (event.actions && event.actions.length > 0) {
+            // Если actions - это массив объектов, а не ID
+            if (typeof event.actions[0] === 'object') {
+              actions = { docs: event.actions as Action[] }
+            } else {
+              // Если actions - это массив ID
+              try {
+                const result = await req.payload.find({
+                  collection: 'actions',
+                  where: {
+                    id: {
+                      in: event.actions,
+                    },
+                  },
+                  depth: 3,
+                })
+                actions = result as { docs: Action[] }
+              } catch (error) {
+                console.error('Ошибка при получении действий:', error)
+                // Продолжаем выполнение с пустым массивом действий
+              }
+            }
+          }
+
           const totalExpenses = actions.docs.reduce((sum, action) => sum + Number(action.amount), 0)
 
           // Рассчитываем долги
           const deptMe = actions.docs
-            .filter((action) => action.from === (req.user as any).id)
+            .filter((action) => {
+              const fromId = typeof action.from === 'object' ? action.from.id : action.from
+              return fromId === (req.user as any).id
+            })
             .map((action) => ({
               id: action.id,
               name: (action.to as any).name,
@@ -192,7 +212,10 @@ export const Events: CollectionConfig = {
             }))
 
           const deptToMe = actions.docs
-            .filter((action) => action.to === (req.user as any).id)
+            .filter((action) => {
+              const toId = typeof action.to === 'object' ? action.to.id : action.to
+              return toId === (req.user as any).id
+            })
             .map((action) => ({
               id: action.id,
               name: (action.from as any).name,
@@ -253,6 +276,7 @@ export const Events: CollectionConfig = {
             id: Number(eventId),
             data: {
               actions: [...(event.actions || []), action.id],
+              amount: event.amount ? event.amount + Number(amount) : Number(amount),
             },
           })
 
