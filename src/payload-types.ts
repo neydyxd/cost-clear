@@ -171,7 +171,6 @@ export interface Event {
   image?: (number | null) | Media;
   users?: (number | User)[] | null;
   actions?: (number | Action)[] | null;
-  purchases?: (number | Purchase)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -182,9 +181,9 @@ export interface Event {
 export interface Action {
   id: number;
   name: string;
-  from: number | User;
-  to: number | User;
   amount: number;
+  from: number | User;
+  depts?: (number | Purchase)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -196,8 +195,8 @@ export interface Purchase {
   id: number;
   name: string;
   amount: number;
-  user: number | User;
-  date?: string | null;
+  from?: (number | null) | User;
+  to?: (number | null) | User;
   updatedAt: string;
   createdAt: string;
 }
@@ -318,7 +317,6 @@ export interface EventsSelect<T extends boolean = true> {
   image?: T;
   users?: T;
   actions?: T;
-  purchases?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -328,9 +326,9 @@ export interface EventsSelect<T extends boolean = true> {
  */
 export interface ActionsSelect<T extends boolean = true> {
   name?: T;
-  from?: T;
-  to?: T;
   amount?: T;
+  from?: T;
+  depts?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -341,8 +339,8 @@ export interface ActionsSelect<T extends boolean = true> {
 export interface PurchaseSelect<T extends boolean = true> {
   name?: T;
   amount?: T;
-  user?: T;
-  date?: T;
+  from?: T;
+  to?: T;
   updatedAt?: T;
   createdAt?: T;
 }

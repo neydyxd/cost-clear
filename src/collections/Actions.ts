@@ -9,21 +9,21 @@ export const Actions: CollectionConfig = {
         required: true,
       },
       {
+        name: 'amount',
+        type: 'number',
+        required: true,
+      },
+      {
         name: 'from',
         type: 'relationship',
         relationTo: 'users',
         required: true,
       },
       {
-        name: 'to',
+        name: 'depts',
         type: 'relationship',
-        relationTo: 'users',
-        required: true,
-      },
-      {
-        name: 'amount',
-        type: 'number',
-        required: true,
+        relationTo: 'purchase',
+        hasMany: true,
       },
     ],
   }

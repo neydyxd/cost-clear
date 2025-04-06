@@ -37,8 +37,11 @@ import {
   Input,
   Select,
   useDisclosure,
+  IconButton,
 } from '@chakra-ui/react'
 import { useParams } from 'next/navigation'
+import { DeleteIcon, AddIcon } from '@chakra-ui/icons'
+import { User } from '@/payload-types'
 
 interface Event {
   id: string
@@ -48,6 +51,7 @@ interface Event {
   location: string
   totalExpenses: number
   summ: number
+  amount: number
   image: {
     url: string
   }
@@ -82,12 +86,14 @@ interface Event {
     name: string
     amount: number
     object: string
+    from: User;
   }>
   deptToMe?: Array<{
     id: string
     name: string
     amount: number
     object: string
+    to: User;
   }>
 }
 
@@ -105,8 +111,8 @@ export default function EventPage() {
   const [error, setError] = useState<string | null>(null)
   const [formData, setFormData] = useState({
     name: '',
-    to: '',
     amount: '',
+    depts: [{ to: '', amount: '' }],
   })
   const [purchaseData, setPurchaseData] = useState({
     name: '',
@@ -158,10 +164,14 @@ export default function EventPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: formData.name,
           eventId: params.id,
-          to: formData.to,
+          name: formData.name,
           amount: Number(formData.amount),
+          depts: formData.depts.map((dept) => ({
+            from: Number(dept.to),
+            to: event?.currentUser.id,
+            amount: Number(dept.amount),
+          })),
         }),
       })
 
@@ -178,9 +188,6 @@ export default function EventPage() {
         isClosable: true,
       })
 
-      onClose()
-      setFormData({ name: '', to: '', amount: '' })
-
       // Обновляем данные события
       const updatedEvent = await fetch('/api/events/single-event', {
         method: 'POST',
@@ -191,6 +198,12 @@ export default function EventPage() {
       }).then((res) => res.json())
 
       setEvent(updatedEvent)
+      onClose()
+      setFormData({
+        name: '',
+        amount: '',
+        depts: [{ to: '', amount: '' }],
+      })
     } catch (err) {
       toast({
         title: 'Ошибка',
@@ -200,6 +213,31 @@ export default function EventPage() {
         isClosable: true,
       })
     }
+  }
+
+  const addDept = () => {
+    setFormData({
+      ...formData,
+      depts: [...formData.depts, { to: '', amount: '' }],
+    })
+  }
+
+  const removeDept = (index: number) => {
+    const newDepts = [...formData.depts]
+    newDepts.splice(index, 1)
+    setFormData({
+      ...formData,
+      depts: newDepts,
+    })
+  }
+
+  const updateDept = (index: number, field: 'to' | 'amount', value: string) => {
+    const newDepts = [...formData.depts]
+    newDepts[index][field] = value
+    setFormData({
+      ...formData,
+      depts: newDepts,
+    })
   }
 
   const handleRemoveAction = async (actionId: string) => {
@@ -324,9 +362,6 @@ export default function EventPage() {
     )
   }
 
-  const totalPaid = event.totalExpenses ? event.totalExpenses - (event.summ || 0) : 0
-  const totalDebts = event.totalExpenses ? event.totalExpenses - totalPaid : 0
-  const paymentProgress = event.totalExpenses ? (totalPaid / event.totalExpenses) * 100 : 0
 
   return (
     <Container maxW="container.xl" py={8}>
@@ -368,32 +403,16 @@ export default function EventPage() {
           <Stat>
             <StatLabel color="gray.400">Общая стоимость</StatLabel>
             <StatNumber color="white">{event.totalExpenses} ₽</StatNumber>
-            {!Number.isNaN(paymentProgress) && (
-              <StatHelpText color="gray.400">
-                <StatArrow type="increase" />
-                {`Оплачено ${paymentProgress.toFixed(1)}%`}
-              </StatHelpText>
-            )}
-          </Stat>
-          <Stat>
-            <StatLabel color="gray.400">Оплачено</StatLabel>
-            <StatNumber color="white">{totalPaid} ₽</StatNumber>
-            <StatHelpText color="gray.400">
-              <StatArrow type="increase" />
-              {event.users.length} участников
-            </StatHelpText>
           </Stat>
           <Stat>
             <StatLabel color="gray.400">Долги</StatLabel>
-            <StatNumber color="red.400">{totalDebts} ₽</StatNumber>
+            <StatNumber color="red.400">{event.amount} ₽</StatNumber>
             <StatHelpText color="gray.400">
               <StatArrow type="decrease" />
               Требует погашения
             </StatHelpText>
           </Stat>
         </StatGroup>
-
-        <Progress value={paymentProgress} colorScheme="teal" size="lg" borderRadius="full" />
 
         <HStack
           spacing={{ base: 4, md: 8 }}
@@ -486,15 +505,15 @@ export default function EventPage() {
                     </Tr>
                   </Thead>
                   <Tbody>
-                    {event.purchases?.map((purchase) => (
-                      <Tr key={purchase.id}>
-                        <Td color="white">{purchase.name}</Td>
-                        <Td color="gray.300">{purchase.amount} ₽</Td>
+                    {event.actions?.map((action) => (
+                      <Tr key={action.id}>
+                        <Td color="white">{action.name}</Td>
+                        <Td color="gray.300">{action.amount} ₽</Td>
                         <Td color="gray.300" display={{ base: 'none', md: 'table-cell' }}>
-                          {purchase.user.name}
+                          {action.from.name}
                         </Td>
                         <Td color="gray.300" display={{ base: 'none', md: 'table-cell' }}>
-                          {new Date(purchase.date).toLocaleDateString('ru-RU')}
+                          {new Date(action.createdAt).toLocaleDateString('ru-RU')}
                         </Td>
                       </Tr>
                     ))}
@@ -519,13 +538,13 @@ export default function EventPage() {
                       borderColor="red.500"
                     >
                       <Text color="white" fontWeight="bold">
-                        {dept.name}
+                        {dept.to.name}
                       </Text>
                       <Text color="red.400" fontSize={{ base: 'md', md: 'lg' }}>
                         Должен {dept.amount} ₽
                       </Text>
                       <Text color="gray.400" fontSize={{ base: 'xs', md: 'sm' }}>
-                        За что: {dept.object}
+                        За что: {dept.name}
                       </Text>
                     </Box>
                   ))}
@@ -541,7 +560,7 @@ export default function EventPage() {
                 <VStack spacing={4} align="stretch">
                   {event.deptMe?.map((dept) => (
                     <Box
-                      key={dept.name}
+                      key={dept.id}
                       bg="gray.800"
                       p={{ base: 3, md: 3 }}
                       borderRadius="lg"
@@ -561,7 +580,7 @@ export default function EventPage() {
                             fontSize={{ base: 'sm', md: 'sm' }}
                             margin="12px 0"
                           >
-                            {dept.name}
+                            {dept.from.name}
                           </Text>
                           <Text
                             color="green.400"
@@ -575,7 +594,7 @@ export default function EventPage() {
                             fontSize={{ base: 'xs', md: 'xs' }}
                             margin="12px 0"
                           >
-                            За что: {dept.object}
+                            За что: {dept.name}
                           </Text>
                         </VStack>
                         <Button
@@ -605,12 +624,6 @@ export default function EventPage() {
             mt={{ base: 4, md: 0 }}
           >
             <VStack spacing={4} align="stretch">
-              <Text color="white" fontSize={{ base: 'lg', md: 'xl' }} fontWeight="bold">
-                Выставить счет
-              </Text>
-              <Button colorScheme="teal" size={{ base: 'md', md: 'lg' }} onClick={onOpen}>
-                Выставить
-              </Button>
               <Divider borderColor="gray.600" />
               <Text color="white" fontSize={{ base: 'lg', md: 'xl' }} fontWeight="bold">
                 Добавить расход
@@ -623,7 +636,7 @@ export default function EventPage() {
         </HStack>
       </VStack>
 
-      <Modal isOpen={isOpen} onClose={onClose} size="md">
+      <Modal isOpen={isPurchaseOpen} onClose={onPurchaseClose} size="md">
         <ModalOverlay backdropFilter="blur(10px)" />
         <ModalContent bg="gray.800">
           <ModalHeader color="white">Добавить расход</ModalHeader>
@@ -636,7 +649,7 @@ export default function EventPage() {
                   <Input
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Например: Мангал и уголь"
+                    placeholder="Например: Шашлык"
                     bg="gray.700"
                     borderColor="gray.600"
                     color="white"
@@ -646,34 +659,12 @@ export default function EventPage() {
                 </FormControl>
 
                 <FormControl isRequired>
-                  <FormLabel color="white">Кому</FormLabel>
-                  <Select
-                    value={formData.to}
-                    onChange={(e) => setFormData({ ...formData, to: e.target.value })}
-                    placeholder="Выберите участника"
-                    bg="gray.700"
-                    borderColor="gray.600"
-                    color="white"
-                    _hover={{ borderColor: 'gray.500' }}
-                    _focus={{ borderColor: 'teal.500' }}
-                  >
-                    {event?.users
-                      .filter((user) => user.id !== event.currentUser.id)
-                      .map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.name}
-                        </option>
-                      ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl isRequired>
-                  <FormLabel color="white">Сумма</FormLabel>
+                  <FormLabel color="white">Общая сумма</FormLabel>
                   <Input
                     type="number"
                     value={formData.amount}
                     onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    placeholder="Введите сумму"
+                    placeholder="Введите общую сумму"
                     bg="gray.700"
                     borderColor="gray.600"
                     color="white"
@@ -682,68 +673,86 @@ export default function EventPage() {
                   />
                 </FormControl>
 
+                <Box width="100%">
+                  <Text color="white" mb={2}>
+                    Распределение долгов
+                  </Text>
+                  {formData.depts.map((dept, index) => (
+                    <Box
+                      key={index}
+                      mb={4}
+                      p={4}
+                      borderWidth="1px"
+                      borderRadius="md"
+                      borderColor="gray.600"
+                    >
+                      <HStack justify="space-between" mb={2}>
+                        <Text color="white">Долг #{index + 1}</Text>
+                        {formData.depts.length > 1 && (
+                          <IconButton
+                            aria-label="Удалить долг"
+                            icon={<DeleteIcon />}
+                            size="sm"
+                            colorScheme="red"
+                            onClick={() => removeDept(index)}
+                          />
+                        )}
+                      </HStack>
+                      <VStack spacing={3}>
+                        <FormControl isRequired>
+                          <FormLabel color="white">Кому должен</FormLabel>
+                          <Select
+                            value={dept.to}
+                            onChange={(e) => updateDept(index, 'to', e.target.value)}
+                            placeholder="Выберите участника"
+                            bg="gray.700"
+                            borderColor="gray.600"
+                            color="white"
+                            _hover={{ borderColor: 'gray.500' }}
+                            _focus={{ borderColor: 'teal.500' }}
+                          >
+                            {event?.users
+                              .filter((user) => user.id !== event.currentUser.id)
+                              .map((user) => (
+                                <option key={user.id} value={user.id}>
+                                  {user.name}
+                                </option>
+                              ))}
+                          </Select>
+                        </FormControl>
+
+                        <FormControl isRequired>
+                          <FormLabel color="white">Сумма долга</FormLabel>
+                          <Input
+                            type="number"
+                            value={dept.amount}
+                            onChange={(e) => updateDept(index, 'amount', e.target.value)}
+                            placeholder="Введите сумму долга"
+                            bg="gray.700"
+                            borderColor="gray.600"
+                            color="white"
+                            _hover={{ borderColor: 'gray.500' }}
+                            _focus={{ borderColor: 'teal.500' }}
+                          />
+                        </FormControl>
+                      </VStack>
+                    </Box>
+                  ))}
+
+                  <Button
+                    leftIcon={<AddIcon />}
+                    colorScheme="teal"
+                    variant="outline"
+                    onClick={addDept}
+                    width="full"
+                    mt={2}
+                  >
+                    Добавить еще долг
+                  </Button>
+                </Box>
+
                 <Button type="submit" colorScheme="teal" width="full" mt={4}>
                   Добавить расход
-                </Button>
-              </VStack>
-            </form>
-          </ModalBody>
-        </ModalContent>
-      </Modal>
-
-      <Modal isOpen={isPurchaseOpen} onClose={onPurchaseClose} size="md">
-        <ModalOverlay backdropFilter="blur(10px)" />
-        <ModalContent bg="gray.800">
-          <ModalHeader color="white">Добавить покупку</ModalHeader>
-          <ModalCloseButton color="white" />
-          <ModalBody pb={6}>
-            <form onSubmit={handlePurchaseSubmit}>
-              <VStack spacing={4}>
-                <FormControl isRequired>
-                  <FormLabel color="white">Название покупки</FormLabel>
-                  <Input
-                    value={purchaseData.name}
-                    onChange={(e) => setPurchaseData({ ...purchaseData, name: e.target.value })}
-                    placeholder="Например: Продукты"
-                    bg="gray.700"
-                    borderColor="gray.600"
-                    color="white"
-                    _hover={{ borderColor: 'gray.500' }}
-                    _focus={{ borderColor: 'purple.500' }}
-                  />
-                </FormControl>
-
-                <FormControl isRequired>
-                  <FormLabel color="white">Сумма</FormLabel>
-                  <Input
-                    type="number"
-                    value={purchaseData.amount}
-                    onChange={(e) => setPurchaseData({ ...purchaseData, amount: e.target.value })}
-                    placeholder="Введите сумму"
-                    bg="gray.700"
-                    borderColor="gray.600"
-                    color="white"
-                    _hover={{ borderColor: 'gray.500' }}
-                    _focus={{ borderColor: 'purple.500' }}
-                  />
-                </FormControl>
-
-                <FormControl isRequired>
-                  <FormLabel color="white">Дата</FormLabel>
-                  <Input
-                    type="date"
-                    value={purchaseData.date}
-                    onChange={(e) => setPurchaseData({ ...purchaseData, date: e.target.value })}
-                    bg="gray.700"
-                    borderColor="gray.600"
-                    color="white"
-                    _hover={{ borderColor: 'gray.500' }}
-                    _focus={{ borderColor: 'purple.500' }}
-                  />
-                </FormControl>
-
-                <Button type="submit" colorScheme="purple" width="full" mt={4}>
-                  Добавить покупку
                 </Button>
               </VStack>
             </form>

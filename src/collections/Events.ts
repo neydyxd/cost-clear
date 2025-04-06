@@ -1,4 +1,4 @@
-import { Action } from '@/payload-types'
+import { Action, Purchase } from '@/payload-types'
 import type { CollectionConfig } from 'payload'
 
 export const Events: CollectionConfig = {
@@ -42,12 +42,6 @@ export const Events: CollectionConfig = {
       name: 'actions',
       type: 'relationship',
       relationTo: 'actions',
-      hasMany: true,
-    },
-    {
-      name: 'purchases',
-      type: 'relationship',
-      relationTo: 'purchase',
       hasMany: true,
     },
   ],
@@ -161,7 +155,7 @@ export const Events: CollectionConfig = {
           const event = await req.payload.findByID({
             collection: 'events',
             id: Number(eventId),
-            depth: 2,
+            depth: 3,
           })
 
           if (!event) {
@@ -169,66 +163,49 @@ export const Events: CollectionConfig = {
           }
 
           // Получаем все действия для события
-          let actions: { docs: Action[] } = { docs: [] }
+          const actions = event.actions as Action[]
 
-          // Проверяем, есть ли действия в событии
-          if (event.actions && event.actions.length > 0) {
-            // Если actions - это массив объектов, а не ID
-            if (typeof event.actions[0] === 'object') {
-              actions = { docs: event.actions as Action[] }
-            } else {
-              // Если actions - это массив ID
-              try {
-                const result = await req.payload.find({
-                  collection: 'actions',
-                  where: {
-                    id: {
-                      in: event.actions,
-                    },
-                  },
-                  depth: 3,
-                })
-                actions = result as { docs: Action[] }
-              } catch (error) {
-                console.error('Ошибка при получении действий:', error)
-                // Продолжаем выполнение с пустым массивом действий
+          // Получаем все долги, которые должны текущему пользователю
+          const deptMe = actions.flatMap((action) => {
+            const depts = action.depts as Purchase[]
+            return depts.filter((dept: Purchase) => {
+              if (typeof dept.to === 'object' && dept.to !== null) {
+                return dept.to.id === req.user?.id
               }
-            }
-          }
-
-          const totalExpenses = actions.docs.reduce((sum, action) => sum + Number(action.amount), 0)
-
-          // Рассчитываем долги
-          const deptMe = actions.docs
-            .filter((action) => {
-              const fromId = typeof action.from === 'object' ? action.from.id : action.from
-              return fromId === (req.user as any).id
+              return dept.to === req.user?.id
             })
-            .map((action) => ({
-              id: action.id,
-              name: (action.to as any).name,
-              amount: Number(action.amount),
-              object: action.name,
-            }))
+          })
 
-          const deptToMe = actions.docs
-            .filter((action) => {
-              const toId = typeof action.to === 'object' ? action.to.id : action.to
-              return toId === (req.user as any).id
+          const deptToMe = actions.flatMap((action) => {
+            const depts = action.depts as Purchase[]
+            return depts.filter((dept: Purchase) => {
+              if (typeof dept.from === 'object' && dept.from !== null) {
+                return dept.from.id === req.user?.id
+              }
+              return dept.from === req.user?.id
             })
-            .map((action) => ({
-              id: action.id,
-              name: (action.from as any).name,
-              amount: Number(action.amount),
-              object: action.name,
-            }))
+          })
+
+          const amount = actions.reduce((sum, action) => {
+            const depts = action.depts as Purchase[]
+            const actionTotal = depts.reduce((deptSum, dept) => {
+              return deptSum + Number(dept.amount || 0)
+            }, 0)
+            return sum + actionTotal
+          }, 0)
+
+          // Рассчитываем сумму amount всех действий
+          const totalExpenses = actions.reduce((sum, action) => {
+            return sum + Number(action.amount || 0)
+          }, 0)
 
           return Response.json({
             ...event,
             totalExpenses,
-            deptMe,
-            deptToMe,
+            amount,
             currentUser: req.user,
+            deptMe,
+            deptToMe
           })
         } catch (error) {
           return Response.json(
@@ -245,7 +222,7 @@ export const Events: CollectionConfig = {
         if (!req.json) {
           return Response.json({ message: 'Неверный формат запроса' }, { status: 400 })
         }
-        const { name, eventId, to, amount } = await req.json()
+        const { name, eventId, amount, depts } = await req.json()
 
         if (!req.user) {
           return Response.json({ message: 'Пожалуйста, войдите в систему' }, { status: 401 })
@@ -254,33 +231,52 @@ export const Events: CollectionConfig = {
         try {
           const event = await req.payload.findByID({
             collection: 'events',
-            id: Number(eventId),
+            id: eventId,
           })
 
           if (!event) {
             return Response.json({ message: 'Событие не найдено' }, { status: 404 })
           }
 
-          const action = await req.payload.create({
+          // Создаем покупки для каждого долга
+          const purchases: number[] = []
+
+          // Используем Promise.all для ожидания завершения всех асинхронных операций
+          await Promise.all(
+            depts.map(async (dept: any) => {
+              const purchase = await req.payload.create({
+                collection: 'purchase',
+                data: {
+                  name: name,
+                  amount: dept.amount,
+                  from: dept.from,
+                  to: dept.to,
+                },
+              })
+              purchases.push(purchase.id)
+            }),
+          )
+
+          const newAction = await req.payload.create({
             collection: 'actions',
             data: {
-              name,
+              name: name,
+              amount: amount,
+              depts: purchases,
               from: req.user.id,
-              to: Number(to),
-              amount: Number(amount),
             },
           })
 
           const updatedEvent = await req.payload.update({
             collection: 'events',
-            id: Number(eventId),
+            id: eventId,
             data: {
-              actions: [...(event.actions || []), action.id],
+              actions: [...(event.actions || []), newAction.id],
               amount: event.amount ? event.amount + Number(amount) : Number(amount),
             },
           })
 
-          return Response.json({ action, updatedEvent })
+          return Response.json(updatedEvent)
         } catch (error) {
           return Response.json(
             { message: 'Произошла ошибка при добавлении расхода' },
@@ -312,13 +308,9 @@ export const Events: CollectionConfig = {
             return Response.json({ message: 'Событие не найдено' }, { status: 404 })
           }
 
-          const updatedActions = event.actions?.filter((action) => action !== actionId) || []
-          await req.payload.update({
-            collection: 'events',
-            id: Number(eventId),
-            data: {
-              actions: updatedActions,
-            },
+          await req.payload.delete({
+            collection: 'purchase',
+            id: Number(actionId),
           })
 
           return Response.json({ message: 'Действие успешно удалено' })
